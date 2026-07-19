@@ -67,8 +67,8 @@ Do not currently implement:
 - Add tests for new behaviour.
 - Update documentation when behaviour changes.
 - Run all checks before declaring a task complete.
-- Do not commit, push, create releases or change repository visibility unless
-  the user explicitly requests it.
+- Do not commit, push, create releases, merge pull requests, or change
+  repository settings unless the repository maintainer explicitly requests it.
 
 ## Security and privacy
 
