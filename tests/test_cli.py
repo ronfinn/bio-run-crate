@@ -11,7 +11,9 @@ from bio_run_crate.cli import app
 
 runner = CliRunner()
 
-EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "run_manifest.yaml"
+EXAMPLES = Path(__file__).resolve().parent.parent / "examples" / "synthetic"
+VALID = EXAMPLES / "valid-run.yaml"
+INVALID = EXAMPLES / "invalid-run.yaml"
 
 
 def test_version_command() -> None:
@@ -21,13 +23,17 @@ def test_version_command() -> None:
 
 
 def test_validate_valid_manifest() -> None:
-    result = runner.invoke(app, ["validate", str(EXAMPLE)])
+    result = runner.invoke(app, ["validate", str(VALID)])
     assert result.exit_code == 0
-    assert "OK: manifest parsed and validated" in result.stdout
+    assert "Valid" in result.stdout
+    assert "run-001" in result.stdout
 
 
-def test_validate_invalid_manifest(tmp_path: Path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text("schema_version: '0.1'\ntitle: missing fields\n", encoding="utf-8")
-    result = runner.invoke(app, ["validate", str(bad)])
+def test_validate_invalid_manifest() -> None:
+    result = runner.invoke(app, ["validate", str(INVALID)])
+    assert result.exit_code == 1
+
+
+def test_validate_missing_file() -> None:
+    result = runner.invoke(app, ["validate", str(EXAMPLES / "nope.yaml")])
     assert result.exit_code == 1

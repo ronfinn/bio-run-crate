@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: bio-run-crate
+message: >-
+  If you use this software, please cite it using the metadata in this file.
+type: software
+abstract: >-
+  bio-run-crate is a general-purpose, offline command-line tool that validates
+  biological analysis-run metadata described in a YAML manifest. Its longer-term
+  goal is to produce structured validation reports and to create or enrich
+  RO-Crate packages, so that computational-biology results of any modality can
+  carry consistent, checkable metadata independent of the workflow engine, LIMS,
+  or notebook that produced them.
+authors:
+  - given-names: Ron
+    family-names: Finn
+version: 0.1.0
+date-released: "2026-07-19"
+license: Apache-2.0
+keywords:
+  - bioinformatics
+  - metadata
+  - validation
+  - RO-Crate
+  - provenance
+  - YAML

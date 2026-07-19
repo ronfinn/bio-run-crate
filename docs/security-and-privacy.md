@@ -113,12 +113,14 @@ Before opening a pull request, contributors should confirm:
 
 ## 6. Open questions
 
-- Whether the project should adopt a formal vulnerability-disclosure
-  process (for example, a `SECURITY.md` with a reporting contact) — not
-  yet defined.
-- Whether a license and contributor agreement are required before external
-  contributions are accepted (tracked in `docs/project-charter.md` as
-  well).
+- The project now has a `SECURITY.md` describing a private
+  vulnerability-disclosure process. Whether that process needs to be
+  formalised further (for example, a published response-time commitment)
+  is not yet defined.
+- The project is licensed under the Apache License 2.0 (see the `LICENSE`
+  file). Whether a contributor agreement (such as a DCO or CLA) is required
+  before external contributions are accepted remains open (tracked in
+  `docs/project-charter.md` as well).
 - Whether any future optional network-dependent feature (for example,
   ontology lookups, explicitly a non-goal today) would need its own
   privacy review before being added — deferred until such a feature is

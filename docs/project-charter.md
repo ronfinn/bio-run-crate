@@ -144,10 +144,11 @@ and ADR-0002 for the RO-Crate version decision.
 
 ## 9. Open questions
 
-- **Licensing.** No `LICENSE` file currently exists in the repository. The
-  choice of open-source license (and whether contributor sign-off such as a
-  DCO or CLA is required) has not yet been decided and should be resolved
-  before the project accepts external contributions.
+- **Licensing.** The project is licensed under the Apache License 2.0 (see the
+  `LICENSE` file); this open question is resolved for the license itself.
+  Whether contributor sign-off (such as a DCO or CLA) is required remains
+  undecided and should be settled before the project accepts external
+  contributions at scale.
 - **Governance model beyond Milestone 0.** This charter describes
   Milestone 0 governance informally (maintainers/contributors/adopters). A
   more formal governance model (for example, how maintainers are added,
