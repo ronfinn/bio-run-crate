@@ -1,0 +1,55 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+private/
+
+# Claude local configuration
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated output and large data
+build/
+dist/
+outputs/
+data/raw/
+*.h5ad
+*.h5mu
+*.zarr/
+*.tif
+*.tiff
+
+# macOS and editors
+.DS_Store
+.vscode/
+.idea/
