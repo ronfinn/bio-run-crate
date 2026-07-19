@@ -1,12 +1,30 @@
 [project]
 name = "bio-run-crate"
 version = "0.1.0"
-description = "Add your description here"
+description = "Offline CLI for validating biological analysis-run metadata described in YAML manifests."
 readme = "README.md"
 authors = [
     { name = "Ron Finn", email = "28505981+ronfinn@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = [
+    "bioinformatics",
+    "metadata",
+    "validation",
+    "ro-crate",
+    "provenance",
+    "yaml",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",

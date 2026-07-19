@@ -1,0 +1,32 @@
+# Fully synthetic, public-safe example manifest — intentionally INVALID.
+# It parses as YAML but fails RunManifest validation in several ways, to show
+# how bio-run-crate reports problems. Each defect is annotated below.
+manifest_version: "0.1"
+run_id: "0001"                 # invalid: must match run-<NNN> (e.g. run-001)
+
+project:
+  id: proj-1                   # invalid: must match project-<NNN>
+  title: Synthetic project
+
+dataset:
+  id: dataset-001
+  title: Synthetic dataset
+
+biological_context:
+  organism:
+    common_name: human         # invalid: scientific_name is required
+
+assay:
+  type: synthetic-rna-seq
+
+workflow:
+  name: synthetic-workflow     # invalid: version is required
+
+inputs: []
+
+outputs:
+  - id: output-001
+    path: outputs/counts.tsv
+    role: result_table
+
+unexpected_field: not allowed  # invalid: unknown top-level key (extra=forbid)

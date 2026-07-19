@@ -1,11 +1,11 @@
 # Architecture — Bio Run Crate
 
-**Status:** Target design for Milestone 0. As of this writing the
-repository contains only a package skeleton (`src/bio_run_crate/`); the
-components below describe the intended design that implementation work
-should follow, not code that already exists. This document should be
-updated to reflect reality as components are built, per the workflow rule
-in `CLAUDE.md` ("update documentation when behaviour changes").
+**Status:** Partly implemented for Milestone 0. The manifest-parsing and
+generic-run-model components below now exist (`src/bio_run_crate/manifest.py`,
+`models.py`) and are wired into the `validate` CLI command; the validation-rule
+engine, report generation and RO-Crate output are still target design. This
+document should be updated to reflect reality as components are built, per the
+workflow rule in `CLAUDE.md` ("update documentation when behaviour changes").
 
 ## 1. Scope boundary
 

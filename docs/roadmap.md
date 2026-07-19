@@ -14,16 +14,16 @@ CLI, using entirely synthetic examples. Defined in `CLAUDE.md`.
 
 Scope (see `docs/project-charter.md` §3 for the authoritative list):
 
-- [ ] Generic run model implemented as typed Pydantic models
+- [x] Generic run model implemented as typed Pydantic models
       (`docs/data-model.md` Part A).
-- [ ] YAML manifest parsing.
+- [x] YAML manifest parsing.
 - [ ] Core validation rule engine with stable rule IDs.
 - [ ] ERROR/WARNING/INFO findings.
 - [ ] JSON and Markdown report generation.
 - [ ] RO-Crate 1.2 package creation via `ro-crate-py`.
-- [ ] Minimal CLI (Typer) wiring the above together.
-- [ ] Test suite covering parsing, validation, and reporting with synthetic
-      fixtures.
+- [x] Minimal CLI (Typer) wiring the above together (`validate` command).
+- [x] Test suite covering parsing and validation with synthetic fixtures
+      (reporting still to come).
 - [ ] This documentation set, kept accurate as implementation proceeds.
 
 Explicitly **not** in Milestone 0 (see non-goals in

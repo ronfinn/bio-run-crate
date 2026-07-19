@@ -19,6 +19,7 @@ def load_manifest(path: Path) -> RunManifest:
     """Read a YAML manifest file and return a validated :class:`RunManifest`.
 
     Raises:
+        FileNotFoundError: if the file does not exist.
         ValueError: if the file does not contain a top-level mapping.
         yaml.YAMLError: if the file is not valid YAML.
         pydantic.ValidationError: if the data does not satisfy the model.
