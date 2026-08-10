@@ -58,6 +58,12 @@ uv run ruff format --check .     # formatting
 uv run mypy src                  # type checking
 ```
 
+These same four checks run in GitHub Actions
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) on every push and pull
+request, using Python 3.12 and `uv sync --locked`. A pull request fails CI if any
+of them fails. Because CI installs from the lockfile, commit an updated
+`uv.lock` whenever you change dependencies.
+
 Add or update tests for any behaviour you change, and update the relevant
 documentation (including [`docs/`](docs/) and the [README](README.md)) when
 behaviour changes.
