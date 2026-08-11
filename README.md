@@ -94,9 +94,12 @@ These work today and are covered by tests:
 These are designed in the docs but **not yet implemented**; the CLI does not
 perform them today:
 
-- **Structured findings** with stable rule IDs and ERROR / WARNING / INFO
-  severities. (Today the CLI surfaces Pydantic's built-in validation errors
-  directly, not project-defined rule findings.)
+- **The validation-rule engine.** The structured findings model it will produce
+  — stable rule IDs, ERROR / WARNING / INFO severities, manifest locations, and
+  a deterministically ordered result container — is implemented in
+  `bio_run_crate.findings` and documented in
+  [`docs/data-model.md`](docs/data-model.md) §A.8, but no rules emit findings
+  yet, so the CLI still surfaces Pydantic's built-in validation errors directly.
 - **JSON and Markdown validation reports.**
 - **RO-Crate 1.2 package creation** via
   [`ro-crate-py`](https://www.researchobject.org/ro-crate/). (`rocrate` is

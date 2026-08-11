@@ -128,16 +128,59 @@ must match (`input-<NNN>` for inputs, `output-<NNN>` for outputs).
 ### A.8 Findings (produced by validation, not part of the manifest itself)
 
 Findings are the *output* of validating a `RunManifest`, not an input
-field. This structured findings model is **not yet implemented** — at this
-milestone the CLI surfaces Pydantic's built-in errors directly. When built,
-each finding will have:
+field. The structured findings model is **implemented** in
+`src/bio_run_crate/findings.py`. What is *not* yet implemented is everything
+that produces or consumes it: the rule engine that emits findings, and the JSON
+and Markdown reporters that render them. Until those exist, the CLI still
+surfaces Pydantic's built-in errors directly and does not use this model.
+
+A `Finding` has:
 
 | Field | Type | Notes |
 |---|---|---|
-| `rule_id` | string | Stable identifier, e.g. `CORE-001`. See ADR-0003 and `docs/architecture.md` §3.4. |
-| `severity` | enum | `ERROR`, `WARNING`, or `INFO`. |
-| `message` | string | Human-readable. |
-| `path` | string | Location within the manifest the finding refers to (e.g. `inputs[0].checksum`). |
+| `rule_id` | string | Stable identifier, e.g. `CORE-001`. See §A.8.1, ADR-0003 and `docs/architecture.md` §3.4. |
+| `severity` | enum | `ERROR`, `WARNING`, or `INFO` — exactly these three. |
+| `message` | string | Human-readable, non-empty. |
+| `location` | object | `{"path": "inputs[0].checksum"}`; defaults to the whole manifest, `"$"`. |
+
+A `ValidationResult` aggregates the findings of one validation run in its
+`findings` field. Both models are frozen (findings are never mutated in place)
+and reject unknown fields, and both serialise to plain JSON types via Pydantic
+(`model_dump(mode="json")` / `model_dump_json()`), with `severity` rendered as
+its plain name.
+
+A `ValidationResult` keeps its findings in **canonical order**: severity
+(`ERROR`, then `WARNING`, then `INFO`), then location path, then rule ID, then
+message. The order is applied by the model itself on every construction path —
+the plain constructor, `model_validate`, JSON deserialisation, and the
+`ValidationResult.from_findings(...)` convenience — so it is a property of the
+result, not of how a caller chose to build it. Because the sort key is total
+over everything that distinguishes one finding from another, the order the rule
+engine happens to emit findings in cannot leak into report output, and equal
+result contents always serialise to identical JSON. Sorting never mutates the
+caller's own collection.
+
+#### A.8.1 Rule-ID convention
+
+A rule identifier is `<NAMESPACE>-<NNN>`:
+
+- `NAMESPACE` — uppercase letters and digits, starting with a letter, 2–16
+  characters. Core rules use `CORE`; each validation profile uses its own
+  distinct namespace (ADR-0003).
+- `NNN` — a zero-padded number of three or more digits.
+
+Examples: `CORE-001`, `SEQ-014`. Rule IDs are part of the tool's public
+surface — they may appear in audit records and suppression lists — so a rule's
+severity or wording may change over time, but its identifier must not.
+
+Two further invariants apply to the rule set as a whole: a number is **unique
+within its namespace**, and an identifier is **never reused** once assigned.
+
+The `Finding` model validates the *syntax* above (also exposed as
+`bio_run_crate.findings.is_valid_rule_id`). It cannot check uniqueness or
+reuse — a single finding has no view of the other rules — so those two
+invariants must be enforced by the rule registry/engine when it is built, and
+by review of any change that retires or renumbers a rule.
 
 ### A.9 Open questions (generic model)
 

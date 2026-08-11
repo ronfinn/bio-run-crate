@@ -2,10 +2,12 @@
 
 **Status:** Partly implemented for Milestone 0. The manifest-parsing and
 generic-run-model components below now exist (`src/bio_run_crate/manifest.py`,
-`models.py`) and are wired into the `validate` CLI command; the validation-rule
-engine, report generation and RO-Crate output are still target design. This
-document should be updated to reflect reality as components are built, per the
-workflow rule in `CLAUDE.md` ("update documentation when behaviour changes").
+`models.py`) and are wired into the `validate` CLI command, and the structured
+findings model exists (`findings.py`) but has no producer or consumer yet; the
+validation-rule engine, report generation and RO-Crate output are still target
+design. This document should be updated to reflect reality as components are
+built, per the workflow rule in `CLAUDE.md` ("update documentation when
+behaviour changes").
 
 ## 1. Scope boundary
 
@@ -118,20 +120,30 @@ are we standing on something that already exists?"
 
 ### 3.4 Validation engine
 
+**Status:** the findings model it produces is implemented
+(`src/bio_run_crate/findings.py`); the rule set and the engine that applies it
+are not.
+
 - Applies rules to the parsed model. Each rule has a stable, versioned
-  identifier (for example, a short code plus number) so that a finding can
-  be traced back to exactly one rule, referenced externally (e.g. in an
-  audit record or a suppression list), and have its severity or wording
-  changed over time without breaking that traceability.
-- Produces a list of findings, each with: rule ID, severity
-  (ERROR/WARNING/INFO), a human-readable message, and a reference to the
-  location in the manifest the finding applies to.
+  identifier (`<NAMESPACE>-<NNN>`, e.g. `CORE-001`; the convention is defined in
+  `docs/data-model.md` §A.8.1, whose syntax the `Finding` model validates) so
+  that a finding can be traced back to exactly one rule, referenced externally
+  (e.g. in an audit record or a suppression list), and have its severity or
+  wording changed over time without breaking that traceability.
+- Produces findings, each with: rule ID, severity (ERROR/WARNING/INFO), a
+  human-readable message, and a `Location` referring to the place in the
+  manifest the finding applies to. Findings are aggregated into a
+  `ValidationResult`, which canonically orders them on every construction path,
+  so the engine's emission order cannot leak into reports.
 - Must not require network access. Any rule that would require network
   access (for example, an ontology-term lookup) is explicitly out of scope
   for Milestone 0 (see non-goals in `docs/project-charter.md`) and, if
   ever added later, would need to be optional and clearly separated.
 
 ### 3.5 Reporting
+
+**Status:** not implemented. The findings model these reporters will consume
+(§3.4) already exists and is JSON-serialisable and deterministically ordered.
 
 - Serializes findings to JSON (machine-readable, stable schema) and to
   Markdown (human-readable summary).
