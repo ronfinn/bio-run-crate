@@ -11,6 +11,17 @@ changes.
 
 ### Added
 
+- Structured validation findings in `bio_run_crate.findings`: a `Severity`
+  enumeration limited to `ERROR`, `WARNING` and `INFO`; a frozen `Finding`
+  model carrying a stable rule identifier, severity, message and a `Location`
+  into the manifest; and a `ValidationResult` container that holds its findings
+  in a canonical, deterministic order on every construction path. Both models
+  are JSON-serialisable. The rule-ID syntax (`<NAMESPACE>-<NNN>`, core rules
+  under `CORE`) is documented in `docs/data-model.md` §A.8.1 and validated by the
+  model; uniqueness and non-reuse of identifiers are project-level invariants for
+  the future rule registry to enforce. The rule engine that produces findings
+  and the reporters that render them are not yet implemented, so the CLI does
+  not use this model yet.
 - Automated secret scanning with [gitleaks](https://github.com/gitleaks/gitleaks),
   as a `Secret scanning` job in the existing CI workflow, running on pull
   requests and pushes to `main` over both the working tree and the full commit
@@ -24,8 +35,7 @@ changes.
 Designed but not yet implemented (see the [README](README.md) and
 [architecture](docs/architecture.md)):
 
-- Structured validation findings with stable rule identifiers and
-  ERROR / WARNING / INFO severities.
+- The validation-rule engine that produces findings.
 - JSON and Markdown validation reports.
 - RO-Crate 1.2 package creation via `ro-crate-py`.
 - Optional enrichment of an existing nf-prov RO-Crate.
