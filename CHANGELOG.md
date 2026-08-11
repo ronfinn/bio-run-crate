@@ -9,6 +9,16 @@ changes.
 
 ## [Unreleased]
 
+### Added
+
+- Automated secret scanning with [gitleaks](https://github.com/gitleaks/gitleaks),
+  as a `Secret scanning` job in the existing CI workflow, running on pull
+  requests and pushes to `main` over both the working tree and the full commit
+  history. A detected credential fails the build. Configuration and a narrow,
+  documented allowlist for synthetic placeholders live in `.gitleaks.toml`;
+  local usage, remediation, and allowlisting guidance are documented in
+  `CONTRIBUTING.md` and `docs/security-and-privacy.md`.
+
 ### Planned
 
 Designed but not yet implemented (see the [README](README.md) and

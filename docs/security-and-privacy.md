@@ -111,7 +111,84 @@ Before opening a pull request, contributors should confirm:
 - Any change that affects what data the tool reads, writes, or transmits
   is called out explicitly in the pull request description.
 
-## 6. Open questions
+## 6. Secret scanning
+
+The no-credentials rule in §1 is enforced automatically, not only by review.
+[Gitleaks](https://github.com/gitleaks/gitleaks) scans the repository for
+credentials, API keys, tokens and private keys. It runs as the
+`Secret scanning` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+on every pull request and on every push to `main`, and **a finding fails the
+build**. The job scans the full commit history, not just the changed files, so
+a secret that was added and then removed in a later commit is still caught.
+
+The rule set is the upstream gitleaks default, inherited via `useDefault` in
+[`.gitleaks.toml`](../.gitleaks.toml). Scanning is limited to this repository.
+This is a safety net, not a guarantee: it does not replace the contributor
+checks in §5.
+
+### Running the scan locally
+
+Install gitleaks (`brew install gitleaks`, or a binary from the
+[releases page](https://github.com/gitleaks/gitleaks/releases)), then from the
+repository root:
+
+```
+gitleaks dir . --config .gitleaks.toml --redact    # working tree
+gitleaks git . --config .gitleaks.toml --redact    # commit history
+```
+
+`--redact` keeps any matched value out of your terminal and shell history. An
+exit status of `0` means no findings; `1` means at least one finding.
+
+### What a finding means
+
+A finding means gitleaks matched a pattern that looks like a real credential at
+a specific file, line and commit. **Treat it as a real leak until you have
+established otherwise.** There are three cases:
+
+1. **A real secret, not yet pushed.** Remediate as below.
+2. **A real secret that has already been pushed.** Remediate as below *and*
+   treat it as compromised.
+3. **A genuine false positive** — a synthetic placeholder or test value that
+   only resembles a credential. Allowlist it as described below.
+
+### Remediating a real leaked secret
+
+1. **Rotate or revoke the credential first.** This is the only step that
+   actually limits the damage; removing it from the repository does not, because
+   anyone who fetched the commit still has it.
+2. Remove the value from the code and replace it with a non-functional
+   placeholder or an environment variable read at runtime.
+3. If the commit has **not** been pushed, amend or rebase it away so the value
+   never enters shared history.
+4. If the commit **has** been pushed, do not simply commit a deletion — the
+   value remains in history. Ask a maintainer to coordinate a history rewrite,
+   and assume the credential is compromised regardless of the outcome.
+5. Report it privately via [`SECURITY.md`](../SECURITY.md) rather than in a
+   public issue or pull request, and do not restate the secret in the report.
+6. Re-run `gitleaks git . --config .gitleaks.toml --redact` to confirm the
+   history is clean.
+
+### Allowlisting a synthetic false positive
+
+Allowlist entries live in the `[allowlist]` section of
+[`.gitleaks.toml`](../.gitleaks.toml). Add one only when you have confirmed the
+value is synthetic and non-functional, and keep it **narrow**:
+
+- prefer a specific path (`^\.env\.example$`) or a pattern that matches the
+  placeholder itself, over a directory glob;
+- scope it to the rule it affects (`[[rules.allowlists]]`) rather than the
+  whole scan where you can;
+- add a comment saying *why* the value is safe.
+
+**Do not disable a rule globally, allowlist a whole directory, or widen an
+entry just to make CI green.** A broad suppression removes the protection for
+every future contribution to the same area, which is the failure mode this
+control exists to prevent. If you cannot justify an entry in a sentence, it
+probably is not a false positive. Every allowlist change is reviewed as a
+security-relevant change.
+
+## 7. Open questions
 
 - The project now has a `SECURITY.md` describing a private
   vulnerability-disclosure process. Whether that process needs to be
