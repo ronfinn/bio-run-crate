@@ -68,6 +68,35 @@ Add or update tests for any behaviour you change, and update the relevant
 documentation (including [`docs/`](docs/) and the [README](README.md)) when
 behaviour changes.
 
+## Secret scanning
+
+The same workflow runs a separate `Secret scanning` job that scans the working
+tree and the full commit history with
+[gitleaks](https://github.com/gitleaks/gitleaks) for credentials, API keys,
+tokens, and private keys. **A finding fails CI.** To run it yourself before
+pushing, install gitleaks (`brew install gitleaks`, or a binary from the
+[releases page](https://github.com/gitleaks/gitleaks/releases)) and run:
+
+```
+gitleaks dir . --config .gitleaks.toml --redact    # working tree
+gitleaks git . --config .gitleaks.toml --redact    # commit history
+```
+
+`--redact` keeps any matched value out of your terminal output. Exit status `0`
+means no findings.
+
+Treat a finding as a real leak until you have shown otherwise: **rotate or
+revoke the credential first**, then remove it from the code and history. If it
+has already been pushed, assume it is compromised and report it privately via
+[`SECURITY.md`](SECURITY.md) — not in a public issue or pull request.
+
+If a finding is genuinely a synthetic placeholder, add a **narrow, commented**
+entry to the `[allowlist]` section of [`.gitleaks.toml`](.gitleaks.toml) —
+matching that specific file or value. Do not disable a rule globally, allowlist
+a whole directory, or widen an entry to make CI pass. Full guidance, including
+the remediation steps, is in
+[`docs/security-and-privacy.md`](docs/security-and-privacy.md) §6.
+
 ## Pull request checklist
 
 Before requesting review, confirm:
@@ -77,6 +106,8 @@ Before requesting review, confirm:
 - [ ] Any new example or fixture is clearly synthetic and uses
       `example.org`-style placeholders.
 - [ ] All four checks above pass locally.
+- [ ] The secret scan is clean locally, and any new `.gitleaks.toml` allowlist
+      entry is narrow and justified in a comment.
 - [ ] New or changed behaviour has tests.
 - [ ] Documentation is updated where behaviour changed.
 - [ ] Any change to what data the tool reads, writes, or transmits is called out

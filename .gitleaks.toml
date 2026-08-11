@@ -1,0 +1,45 @@
+# Gitleaks configuration for bio-run-crate.
+#
+# Gitleaks (https://github.com/gitleaks/gitleaks) scans the working tree and
+# git history for credentials, API keys, tokens and private keys. It runs in
+# CI on every pull request and on every push to `main`; a finding fails the
+# build. See `docs/security-and-privacy.md` §6 for how to run it locally, what
+# a finding means, and how to remediate one.
+#
+# Allowlisting policy: entries below must be NARROW (a specific file, or a
+# specific pattern) and must carry a justification. Do not disable a rule
+# globally, and do not add an entry merely to make the scan green — a finding
+# is assumed to be a real leak until shown otherwise.
+
+title = "bio-run-crate secret scanning"
+
+# Inherit the full upstream gitleaks rule set (cloud provider keys, CI/VCS
+# tokens, private keys, generic high-entropy secrets, and so on) rather than
+# hand-maintaining a partial list of patterns.
+[extend]
+useDefault = true
+
+[allowlist]
+title = "bio-run-crate synthetic placeholders"
+description = """
+Documented, non-functional placeholders that are intentionally committed under
+the project's synthetic-data policy (see docs/security-and-privacy.md §2).
+"""
+
+# `.env.example` exists solely to document which environment variables the
+# project understands. It is required by policy to contain only non-functional
+# placeholder values, and it is a template rather than a real environment file
+# (`.env` and `.env.*` are gitignored). Reviewers must still check any change to
+# this file by hand.
+paths = [
+    '''^\.env\.example$''',
+]
+
+# Documentation and examples must use the reserved example domains (RFC 2606),
+# which are guaranteed never to resolve to a real service. `regexTarget` is
+# left at its default ("secret"), so this only excuses a finding whose flagged
+# value is itself such a placeholder — it does NOT excuse every line that
+# happens to mention `example.org`.
+regexes = [
+    '''^https?://([a-z0-9-]+\.)*example\.(org|com|net)(/\S*)?$''',
+]

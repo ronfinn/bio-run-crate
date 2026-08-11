@@ -324,6 +324,9 @@ committed to this repository. The illustrative **modality profiles** described i
   deserialization.
 - **No silent mutation.** The tool does not rewrite or "fix" your source
   manifest.
+- **Automated secret scanning.** CI scans the working tree and the full commit
+  history with [gitleaks](https://github.com/gitleaks/gitleaks) on every pull
+  request and push to `main`; a detected credential fails the build.
 
 See [`docs/security-and-privacy.md`](docs/security-and-privacy.md) for the full
 policy and [`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
