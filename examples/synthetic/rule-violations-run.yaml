@@ -1,0 +1,44 @@
+# Fully synthetic, public-safe example manifest. No real data.
+# This manifest is structurally valid — it satisfies the RunManifest model — but
+# deliberately violates core validation rules, to show findings rather than
+# schema errors. Each violation is annotated below.
+manifest_version: "0.1"
+run_id: run-002
+
+project:
+  id: project-002
+  title: Synthetic rule-violation demonstration
+  description: A fully synthetic example used to demonstrate core rule findings.
+
+dataset:
+  id: dataset-002
+  title: Synthetic dataset with rule violations
+
+biological_context:
+  organism:
+    scientific_name: Escherichia coli
+    taxon_id: NCBI:txid562
+
+assay:
+  type: synthetic-assay
+
+workflow:
+  name: synthetic-workflow
+  version: "0.1.0"
+
+inputs:
+  - id: input-001
+    path: inputs/sample_a.txt
+    role: primary_input
+  - id: input-001                     # CORE-001 (ERROR): duplicate input id
+    path: inputs/sample_b.txt
+    role: primary_input
+
+outputs:
+  - id: output-001
+    path: outputs/result.tsv
+    role: result_table
+    checksum: sha256:00000000000000000000000000000000000000000000000000000000000000cc
+  - id: output-002
+    path: outputs/summary.txt
+    role: qc_report                   # CORE-003 (WARNING): no checksum

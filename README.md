@@ -18,9 +18,10 @@ Bio Run Crate is a metadata-validation and packaging utility. It is **not** a
 LIMS, a workflow engine, or a data catalog.
 
 > ⚠️ **Alpha / work in progress.** This project is at **Milestone 0**. Today it
-> can parse and validate a YAML manifest against a typed model and report the
-> result with clear exit codes. Structured findings, JSON/Markdown reports, and
-> RO-Crate output are **designed but not yet built** — see
+> can parse a YAML manifest, validate it against a typed model, check it against
+> a small core rule set, and report structured findings with clear exit codes.
+> JSON/Markdown report files and RO-Crate output are **designed but not yet
+> built** — see
 > [Current capabilities](#current-capabilities) and
 > [Planned capabilities](#planned-capabilities). Interfaces may change without
 > notice while the project is pre-1.0.
@@ -61,8 +62,8 @@ many runs.
 
 Bio Run Crate addresses the **metadata-validation and packaging** layer of this
 problem. You describe a run in a small YAML manifest; the tool checks that
-manifest against explicit, typed rules and (in future milestones) emits
-structured reports and a standards-based RO-Crate package. It deliberately does
+manifest against explicit, typed rules, reports structured findings, and (in
+future milestones) emits report files and a standards-based RO-Crate package. It deliberately does
 **not** handle instrument integration, sample tracking, or long-term storage.
 
 See the [project charter](docs/project-charter.md) for the full scope and
@@ -73,34 +74,42 @@ non-goals.
 These work today and are covered by tests:
 
 - **`validate` command** — reads a YAML manifest, checks that the top level is a
-  mapping, validates it against the typed `RunManifest` model, and prints a
-  concise one-line success summary on success.
+  mapping, validates it against the typed `RunManifest` model, runs the core
+  validation rules over it, prints any findings and a concise summary, and exits
+  with a meaningful code.
 - **`version` command** — prints the installed package version.
 - **Typed manifest model** — a [Pydantic v2](https://docs.pydantic.dev/) model
   covering the project, dataset, biological context (organism and optional
   tissue), assay, workflow, and input/output resources. It enforces required
   fields, value types, non-empty strings, synthetic-identifier patterns, and
   **rejects unknown keys**.
-- **Clear error reporting** — validation errors are rendered as a table of the
-  offending locations (so multiple problems are visible at once), printed to
-  **stderr**; the success summary goes to **stdout**.
-- **Deterministic exit codes** — `0` on success, `1` for any failure. See
-  [Exit codes](#exit-codes).
-- **Synthetic examples** — one valid and one intentionally invalid manifest, used
-  by the test suite.
+- **Core validation rules** — a small, modality-agnostic rule set applied to an
+  already-parsed manifest. Each rule has a stable identifier, a single declared
+  severity, and emits structured findings with a location in the manifest. Today
+  that is `CORE-001` (duplicate resource identifiers, ERROR) and `CORE-003`
+  (an output with no checksum, WARNING); a rule ships only if the data model
+  already states the invariant it checks. See
+  [`docs/data-model.md`](docs/data-model.md) §A.8.2. Validation is offline,
+  deterministic, and never modifies your manifest.
+- **Structured findings** — ERROR / WARNING / INFO findings collected into a
+  `ValidationResult` held in a canonical, deterministic order, so the order rules
+  happen to run in can never affect output.
+- **Clear reporting** — schema errors and rule findings are each rendered as a
+  table (so multiple problems are visible at once) on **stderr**; the summary
+  goes to **stdout**.
+- **Deterministic exit codes** — `0` clean, `1` ERROR findings, `2` unusable
+  manifest. See [Exit codes](#exit-codes).
+- **Synthetic examples** — a valid manifest, a schema-invalid one, and a
+  schema-valid manifest that violates core rules, all used by the test suite.
 
 ## Planned capabilities
 
 These are designed in the docs but **not yet implemented**; the CLI does not
 perform them today:
 
-- **The validation-rule engine.** The structured findings model it will produce
-  — stable rule IDs, ERROR / WARNING / INFO severities, manifest locations, and
-  a deterministically ordered result container — is implemented in
-  `bio_run_crate.findings` and documented in
-  [`docs/data-model.md`](docs/data-model.md) §A.8, but no rules emit findings
-  yet, so the CLI still surfaces Pydantic's built-in validation errors directly.
-- **JSON and Markdown validation reports.**
+- **JSON and Markdown validation reports.** `validate` prints findings to the
+  terminal; it does not yet write report files. The findings are already
+  JSON-serialisable, so this is a rendering layer, not new validation.
 - **RO-Crate 1.2 package creation** via
   [`ro-crate-py`](https://www.researchobject.org/ro-crate/). (`rocrate` is
   declared as a dependency in preparation, but no RO-Crate code exists yet.)
@@ -136,14 +145,18 @@ uv run bio-run-crate version
 # Validate a manifest that passes (exits 0)
 uv run bio-run-crate validate examples/synthetic/valid-run.yaml
 
-# Validate a manifest that fails (exits 1, prints an error table)
+# Validate a manifest that breaks a core rule (exits 1, prints a findings table)
+uv run bio-run-crate validate examples/synthetic/rule-violations-run.yaml
+
+# Validate a manifest that fails schema validation (exits 2, prints an error table)
 uv run bio-run-crate validate examples/synthetic/invalid-run.yaml
 ```
 
-A valid manifest prints a short success summary and exits `0`. Any failure — a
-missing or unreadable file, malformed YAML, a non-mapping top level, or a
-validation error — prints an error and exits `1`, with validation errors shown as
-a table so multiple problems are visible at once.
+A manifest with no ERROR findings prints a short summary and exits `0` — WARNING
+and INFO findings are reported but do not make it invalid. An ERROR finding exits
+`1`; a manifest that cannot be parsed into the model at all exits `2`. Findings
+and schema errors are shown as tables so multiple problems are visible at once.
+See [Exit codes](#exit-codes).
 
 ## Manifest example
 
@@ -205,9 +218,16 @@ outputs:
     media_type: text/markdown
 ```
 
-An intentionally invalid counterpart is provided at
-[`examples/synthetic/invalid-run.yaml`](examples/synthetic/invalid-run.yaml),
-with each defect annotated inline.
+Two intentionally defective counterparts are provided, each with its defects
+annotated inline:
+[`examples/synthetic/invalid-run.yaml`](examples/synthetic/invalid-run.yaml)
+fails schema validation (exit `2`), and
+[`examples/synthetic/rule-violations-run.yaml`](examples/synthetic/rule-violations-run.yaml)
+is schema-valid but breaks core rules (exit `1`).
+
+Note that the valid manifest above still produces one `CORE-003` warning —
+`output-002` has no checksum — which is reported but does not make the manifest
+invalid.
 
 ## CLI reference
 
@@ -216,7 +236,7 @@ Running `bio-run-crate` with no arguments prints help. Two commands exist:
 | Command | Arguments | Description |
 |---|---|---|
 | `version` | — | Print the installed package version and exit. |
-| `validate` | `MANIFEST` (path to a YAML file) | Parse and validate a run manifest against the `RunManifest` model. Prints a success summary on stdout, or an error and a table of validation problems on stderr. |
+| `validate` | `MANIFEST` (path to a YAML file) | Parse a run manifest, validate it against the `RunManifest` model, and run the core validation rules. Prints a summary on stdout, and any schema errors or rule findings as a table on stderr. |
 
 ```
 uv run bio-run-crate --help
@@ -225,17 +245,16 @@ uv run bio-run-crate validate --help
 
 ## Exit codes
 
-The `validate` command uses two exit codes today:
+The `validate` command uses three exit codes:
 
 | Code | Meaning |
 |---|---|
-| `0` | The manifest is valid. |
-| `1` | Any failure: file not found or unreadable, malformed YAML, a non-mapping top level, or a model validation error. |
+| `0` | The manifest parsed and produced no ERROR findings. WARNING and INFO findings alone do not change this. |
+| `1` | The manifest parsed, but validation produced at least one ERROR finding. |
+| `2` | The manifest never reached the rule engine: file not found or unreadable, malformed YAML, a non-mapping top level, or a schema validation error. |
 
-> A finer-grained scheme that distinguishes "validation failed" (`1`) from "the
-> tool itself could not run" (`2`) is proposed in
-> [`docs/architecture.md`](docs/architecture.md) but is **not yet implemented** —
-> today all failures return `1`.
+The `1`/`2` split separates "we validated your manifest and it has an error"
+from "there was nothing to validate".
 
 ## What is RO-Crate?
 
@@ -278,15 +297,16 @@ separate components with narrow interfaces. At a high level:
 ```
 CLI (Typer)
   → Manifest parsing (PyYAML → dict → Pydantic models)   [implemented]
-  → Validation                                            [today: model-level; rule engine planned]
-  → Findings (ERROR / WARNING / INFO)                     [planned]
-  → Reports (JSON + Markdown)                             [planned]
+  → Schema validation (typed Pydantic models)             [implemented]
+  → Core rule engine (stable CORE-NNN rule IDs)           [implemented]
+  → Findings (ERROR / WARNING / INFO)                     [implemented]
+  → Reports (JSON + Markdown files)                       [planned]
   → RO-Crate generation / enrichment (ro-crate-py)        [planned]
 ```
 
-Today the CLI wires together manifest parsing and model validation. The
-standalone validation-rule engine, findings model, report generators, and
-RO-Crate layer are still target design. Two adjacent responsibilities are
+Today the CLI wires together manifest parsing, schema validation, and the core
+rule engine, and renders the resulting findings to the terminal. The report
+generators and the RO-Crate layer are still target design. Two adjacent responsibilities are
 deliberately delegated to existing tools rather than reimplemented: workflow
 execution and Nextflow provenance capture (nf-prov), and RO-Crate serialization
 (ro-crate-py). See [`docs/architecture.md`](docs/architecture.md) for the full
@@ -310,7 +330,10 @@ A manifest is a single YAML mapping validated against the `RunManifest` model
 | `inputs` | list | Each item has `id` matching `input-<NNN>`, plus `path`, `role`, optional `media_type`, `checksum`. |
 | `outputs` | list | Each item has `id` matching `output-<NNN>`, plus `path`, `role`, optional `media_type`, `checksum`. |
 
-Every object rejects unknown keys. The identifier patterns (such as `run-001`,
+Every object rejects unknown keys. Beyond this schema layer, the
+[core validation rules](docs/data-model.md#a82-core-rule-set) add cross-field and
+semantic checks: resource identifiers must be unique within their collection,
+and outputs are expected to carry a checksum. The identifier patterns (such as `run-001`,
 `project-001`) deliberately keep examples anchored to invented, public-safe
 values — real sample or specimen identifiers must never appear in a manifest
 committed to this repository. The illustrative **modality profiles** described in
@@ -338,10 +361,9 @@ policy and [`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
 
 - **Current (Milestone 0):** repository, documentation, typed data model, and a
   minimal `validate` CLI over synthetic examples. Manifest parsing, the typed
-  model, and the CLI are done; the rule engine, findings, reports, and RO-Crate
-  output are not.
-- **Next (candidate, not committed):** the core validation-rule engine with
-  stable rule IDs and ERROR/WARNING/INFO findings; JSON and Markdown reports;
+  model, the core rule engine with structured findings, and the CLI are done;
+  reports and RO-Crate output are not.
+- **Next (candidate, not committed):** JSON and Markdown reports;
   RO-Crate 1.2 output; the first real modality profile; nf-prov enrichment.
 - **Later (speculative):** additional profiles, a plugin mechanism for
   third-party profiles, batch/multi-run manifests, and any strictly optional
@@ -354,10 +376,12 @@ Nothing on the roadmap is a dated commitment. See
 
 - Alpha software; interfaces and the manifest schema may change without notice
   while the project is pre-1.0.
-- Validation today is **model-level only** (required fields, types, non-empty
-  strings, identifier/format patterns, unknown-key rejection). There is no
-  cross-field rule engine, no rule IDs, and no WARNING/INFO severities yet.
-- No report files are produced; results are printed to the terminal only.
+- The core rule set is deliberately small — two rules (see
+  [`docs/data-model.md`](docs/data-model.md) §A.8.2); most checking is still done
+  by the schema. Rules that would encode a policy the data model has not agreed,
+  or that would need a modality assumption, an ontology, the network, or the
+  filesystem, are out of scope.
+- No report files are produced; findings are printed to the terminal only.
 - No RO-Crate is created, and no nf-prov crate can be imported yet.
 - No modality-specific profiles are implemented.
 - The tool is not published to a package index; install from source with `uv`.

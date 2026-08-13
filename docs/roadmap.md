@@ -17,13 +17,13 @@ Scope (see `docs/project-charter.md` §3 for the authoritative list):
 - [x] Generic run model implemented as typed Pydantic models
       (`docs/data-model.md` Part A).
 - [x] YAML manifest parsing.
-- [ ] Core validation rule engine with stable rule IDs.
-- [ ] ERROR/WARNING/INFO findings.
+- [x] Core validation rule engine with stable rule IDs.
+- [x] ERROR/WARNING/INFO findings.
 - [ ] JSON and Markdown report generation.
 - [ ] RO-Crate 1.2 package creation via `ro-crate-py`.
 - [x] Minimal CLI (Typer) wiring the above together (`validate` command).
-- [x] Test suite covering parsing and validation with synthetic fixtures
-      (reporting still to come).
+- [x] Test suite covering parsing, core rules and CLI behaviour with
+      synthetic fixtures (reporting still to come).
 - [ ] This documentation set, kept accurate as implementation proceeds.
 
 Explicitly **not** in Milestone 0 (see non-goals in

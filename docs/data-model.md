@@ -7,11 +7,21 @@ examples on this page are entirely synthetic — invented identifiers, invented
 instrument model names, and `example.org`-style values. None refer to any real
 organization, system, or dataset.
 
-Validation at this milestone uses Pydantic's built-in errors only: required
-fields, value types, non-empty required strings, synthetic-identifier patterns,
-and rejection of unknown keys (`extra="forbid"` on every model). The structured
-findings system in §A.6 (stable rule IDs and ERROR/WARNING/INFO severities) is a
-later milestone and is not yet implemented.
+Validating a manifest happens in two distinct layers, and the distinction
+matters throughout this document:
+
+1. **Structural/schema validation (Pydantic).** Required fields, value types,
+   non-empty required strings, synthetic-identifier patterns, and rejection of
+   unknown keys (`extra="forbid"` on every model). A manifest that fails here is
+   not a `RunManifest` at all, so no rule ever runs against it.
+2. **Core validation rules (this project's rule engine).** Cross-field and
+   semantic checks applied to an already-parsed manifest, each with a stable
+   `CORE-NNN` identifier, emitting the structured findings described in §A.8.
+   The core rule set is listed in §A.8.2 and implemented in
+   `src/bio_run_crate/validation/`.
+
+Both layers are implemented and wired into the `validate` CLI command. The JSON
+and Markdown reporters that render findings to files are not yet built.
 
 This document is split into two clearly separated parts, per project
 scope:
@@ -119,20 +129,34 @@ must match (`input-<NNN>` for inputs, `output-<NNN>` for outputs).
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `id` | string, pattern `input-<NNN>` / `output-<NNN>` | yes | Synthetic resource identifier. |
+| `id` | string, pattern `input-<NNN>` / `output-<NNN>` | yes | Synthetic resource identifier. **Must be unique within its collection** — see below. |
 | `path` | string (non-empty) | yes | Relative path or synthetic URI (`example.org` placeholder), never a real internal path. |
 | `role` | string (non-empty) | yes | e.g. `"primary_input"`, `"result_table"`, `"qc_report"`. Free text at this level; profiles may constrain the allowed set. |
 | `media_type` | string | no | MIME type or file-format label. |
 | `checksum` | string | no | Recommended for outputs; a free-text digest label such as `"sha256:…"`. |
 
+**Identifier uniqueness.** A resource `id` identifies exactly one entry within
+its collection: no two `inputs` entries may share an `id`, and no two `outputs`
+entries may share an `id`. This is what makes an identifier usable at all — a
+finding, a report row, or an RO-Crate entity that refers to `input-001` must
+resolve to one resource, not several. Inputs and outputs cannot collide with
+each other, because their identifier patterns differ.
+
+This is a **cross-field invariant**, not a per-field one: Pydantic's pattern
+check validates each `id` in isolation and cannot see the rest of the list, so
+uniqueness is enforced by rule `CORE-001` (§A.8.2) rather than by the schema.
+
+Paths are deliberately *not* required to be unique. One file may legitimately be
+described by two entries with different roles.
+
 ### A.8 Findings (produced by validation, not part of the manifest itself)
 
 Findings are the *output* of validating a `RunManifest`, not an input
 field. The structured findings model is **implemented** in
-`src/bio_run_crate/findings.py`. What is *not* yet implemented is everything
-that produces or consumes it: the rule engine that emits findings, and the JSON
-and Markdown reporters that render them. Until those exist, the CLI still
-surfaces Pydantic's built-in errors directly and does not use this model.
+`src/bio_run_crate/findings.py`, and so is the rule engine that produces
+findings (`src/bio_run_crate/validation/`, §A.8.2). The `validate` command runs
+that engine and prints the findings it produces. What is *not* yet implemented
+are the JSON and Markdown reporters that write them to files.
 
 A `Finding` has:
 
@@ -178,9 +202,59 @@ within its namespace**, and an identifier is **never reused** once assigned.
 
 The `Finding` model validates the *syntax* above (also exposed as
 `bio_run_crate.findings.is_valid_rule_id`). It cannot check uniqueness or
-reuse — a single finding has no view of the other rules — so those two
-invariants must be enforced by the rule registry/engine when it is built, and
-by review of any change that retires or renumbers a rule.
+reuse — a single finding has no view of the other rules.
+
+Uniqueness **is** enforced at runtime: `RuleRegistry` refuses to build a rule set
+containing two rules with the same identifier, so the core registry cannot be
+constructed (and the package cannot be imported) if a duplicate is introduced.
+A registry may also pin a namespace; the core registry pins `CORE`, so a rule
+from a profile namespace cannot be added to the core rule set by mistake.
+
+Non-reuse is a *historical* property that running code cannot infer — it can see
+only the rules that exist now, not the ones that once did. It is therefore made
+checkable by recording retirements explicitly: `RETIRED_CORE_RULE_IDS` in
+`bio_run_crate.validation.core_rules` is a tombstone set, and the registry
+rejects any rule whose identifier appears in it. Retiring a *published* rule
+means deleting the rule *and* adding its identifier to that set; a retirement
+that is never recorded still has to be caught by review. An identifier that was
+only ever drafted and dropped before release was never something a user could
+reference, so it needs no tombstone — it is simply left unallocated (§A.8.2).
+
+#### A.8.2 Core rule set
+
+The modality-agnostic core rules, implemented in
+`src/bio_run_crate/validation/core_rules.py`. The set is deliberately minimal:
+a rule ships only if it follows from something Part A already states. Each rule
+is deterministic, offline, and does not read the filesystem — a manifest's paths
+are never resolved or opened.
+
+| Rule | Severity | Condition | Location | Why it is a core rule |
+|---|---|---|---|---|
+| `CORE-001` | ERROR | A resource `id` appears more than once within `inputs`, or within `outputs`. One finding per repeat occurrence. | `<collection>[<n>].id` of each repeat | §A.7 requires a resource `id` to be unique within its collection. Without that, an identifier does not identify: any finding, report row or RO-Crate entity naming `input-001` would be ambiguous, so the generic model cannot be coherent while permitting duplicates. It is a cross-field invariant — Pydantic's per-field pattern check cannot see the rest of the list — which is exactly why it is a rule rather than schema. |
+| `CORE-003` | WARNING | An output has no `checksum`. | `outputs[<n>].checksum` | §A.7 states a checksum is *recommended for outputs*. A documented recommendation that is not met is "acceptable but questionable", the definition of WARNING. It is not applied to inputs, which carry no such recommendation. |
+
+`CORE-002`, `CORE-004` and `CORE-005` are unallocated: they were drafted during
+development (duplicate resource paths, empty `outputs`, empty `inputs`) and
+dropped before release, because each would have created product policy the model
+does not state — §A.1 explicitly permits empty collections, and §A.7 explicitly
+does not require unique paths. They are open design questions (§A.9), not rules.
+Because they were never present in a released version, no user could have
+referenced them, so they are *not* tombstoned in `RETIRED_CORE_RULE_IDS` — that
+set is reserved for identifiers that were genuinely published. They are simply
+left unused.
+
+Also deliberately excluded: any restatement of a Pydantic check (that would
+duplicate structural validation rather than add to it); any check of `checksum`
+*format*, `role` vocabulary, or `media_type` values (each needs a product
+decision Part A has not made — see §A.9); any check comparing `dataset.created`
+against the current date (non-deterministic); and anything requiring the
+filesystem, an ontology, the network, or knowledge of a specific modality.
+
+Each rule declares exactly one severity, and the engine enforces that a rule
+never emits a finding at any other severity. Severity is therefore a property of
+the rule ID: a reader of an audit record or suppression list can reason about
+`CORE-001` without knowing which manifest produced it. A condition that needs
+reporting at two severities is two rules with two identifiers.
 
 ### A.9 Open questions (generic model)
 
@@ -188,7 +262,15 @@ by review of any change that retires or renumbers a rule.
   level, or remain free text with constraints only added by profiles.
 - Whether `checksum` should become a structured object (`algorithm` + `value`)
   rather than the current free-text label, once outputs are checksummed in
-  practice.
+  practice, and whether its *format* should then be validated.
+- Whether two resource entries sharing a `path` should be reported. It is
+  currently permitted (one file, two roles) and not flagged; treating it as a
+  probable copy-paste mistake would be a new policy, and needs agreement on
+  whether the legitimate case is common enough to matter.
+- Whether an empty `outputs` list (a run that describes nothing it produced) or
+  an empty `inputs` list should be reported, and at what severity. §A.1
+  explicitly permits both today, so flagging either would change the agreed
+  contract rather than validate it.
 - How multi-sample or multi-run batch manifests (as opposed to one manifest
   per run) would be represented, if ever needed — currently out of scope.
 
@@ -245,8 +327,16 @@ Might add to each relevant resource entry:
 
 The canonical copy of this manifest lives at
 `examples/synthetic/valid-run.yaml` and is exercised by the test suite; the
-listing below is a copy for reference. A deliberately invalid counterpart lives
-at `examples/synthetic/invalid-run.yaml`.
+listing below is a copy for reference. Two deliberately defective counterparts
+live alongside it: `examples/synthetic/invalid-run.yaml` fails *schema*
+validation (so no rule runs against it), and
+`examples/synthetic/rule-violations-run.yaml` is schema-valid but violates
+several core *rules* (§A.8.2).
+
+Note that the valid manifest below still produces one `CORE-003` WARNING:
+`output-002` carries no checksum. That is intentional — it keeps a
+warning-producing case in the canonical example — and it does not stop the
+manifest being valid or the command exiting `0`.
 
 ```yaml
 manifest_version: "0.1"
