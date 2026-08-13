@@ -160,9 +160,13 @@ See [Exit codes](#exit-codes).
 
 ## Manifest example
 
-The manifest below is fully synthetic and matches the current model. Every
-identifier, name, and URL is invented; nothing refers to a real organism sample,
-organization, system, or dataset. It is a copy of
+The manifest below is public-safe and matches the current model. Every
+run-specific value — identifiers, paths, project and dataset metadata, workflow
+and instrument names, and URLs — is synthetic and invented. The biological
+context uses real *public reference* terminology and ontology identifiers
+(`Homo sapiens`, `NCBI:txid9606`, `UBERON:0002107`); nothing refers to a real
+sample, patient, private organization, internal system, or production dataset.
+It is a copy of
 [`examples/synthetic/valid-run.yaml`](examples/synthetic/valid-run.yaml).
 
 ```yaml
@@ -225,8 +229,11 @@ invalid.
 
 ### Example manifest library
 
-Every example under `examples/synthetic/` is entirely invented: `example.org`
-URLs, synthetic paths and made-up identifiers only. Alongside the valid manifest
+Every example under `examples/synthetic/` is public-safe. All run-specific
+identifiers, paths, project and dataset metadata, and URLs are synthetic —
+`example.org` domains and invented IDs only. Biological context may use public
+reference terminology and ontology/taxonomy identifiers, which are shared
+vocabulary rather than data about anyone. Alongside the valid manifest
 sit deliberately defective counterparts, each annotated inline with the defect it
 carries. Three of them isolate a single failure so the corresponding diagnostic
 can be seen on its own; the fourth bundles several defects to show how multiple
@@ -359,8 +366,11 @@ committed to this repository. The illustrative **modality profiles** described i
 - **Offline core.** Reading and validating a manifest requires no network access
   and no credentials.
 - **Synthetic data only, in this repository.** All examples, fixtures, and
-  documentation use invented identifiers and `example.org`-style placeholders —
-  never real sample IDs, organization names, internal systems, or personal data.
+  documentation use invented run, project, dataset and resource identifiers,
+  synthetic paths, and `example.org`-style placeholders — never real sample IDs,
+  organization names, internal systems, or personal data. Public reference
+  terminology and ontology/taxonomy identifiers are permitted in biological
+  context, since they are shared vocabulary and not data about anyone.
 - **Safe parsing.** YAML is parsed with safe loading, not arbitrary object
   deserialization.
 - **No silent mutation.** The tool does not rewrite or "fix" your source

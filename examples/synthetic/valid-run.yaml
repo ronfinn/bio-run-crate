@@ -1,6 +1,12 @@
-# Fully synthetic, public-safe example manifest. No real data.
-# Every identifier, name and URL here is invented; nothing refers to a real
-# organism sample, organization, system or dataset.
+# Public-safe example manifest. Every run-specific value — run, project,
+# dataset and resource identifiers, paths, project/dataset metadata, workflow
+# and instrument names, and URLs — is synthetic and invented.
+#
+# The biological context uses real *public reference* terminology and ontology
+# identifiers (`Homo sapiens`, `NCBI:txid9606`, `UBERON:0002107`), which are
+# public vocabulary rather than data about anyone. Nothing here represents a
+# real sample, patient, private organization, internal system or production
+# dataset.
 manifest_version: "0.1"
 run_id: run-001
 

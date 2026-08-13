@@ -3,9 +3,12 @@
 **Status:** Implemented for Milestone 0. The Part A model below is realised as
 Pydantic v2 models in `src/bio_run_crate/models.py`, loaded from YAML by
 `src/bio_run_crate/manifest.py` and validated by the `validate` CLI command. All
-examples on this page are entirely synthetic — invented identifiers, invented
-instrument model names, and `example.org`-style values. None refer to any real
-organization, system, or dataset.
+examples on this page are public-safe: run, project, dataset and resource
+identifiers, paths, instrument model names, and URLs are synthetic and invented,
+using `example.org`-style values. Biological context may use real public
+reference terminology and ontology/taxonomy identifiers. No example refers to a
+real sample, patient, private organization, internal system, or production
+dataset.
 
 Validating a manifest happens in two distinct layers, and the distinction
 matters throughout this document:
@@ -402,6 +405,10 @@ outputs:
     media_type: text/markdown
 ```
 
-This example is used purely to illustrate the schema described in Part A.
-It contains no real identifiers, no real reference genome, and no real
-software beyond synthetic placeholder names.
+This example is used purely to illustrate the schema described in Part A. Its
+run-specific identifiers, paths, project and dataset metadata, and URLs are
+synthetic; its workflow and instrument names are placeholders; and it names no
+real reference genome. The organism and tissue terms are public reference
+vocabulary (`Homo sapiens`, `NCBI:txid9606`, `UBERON:0002107`) and identify no
+real sample, patient, private organization, internal system or production
+dataset.

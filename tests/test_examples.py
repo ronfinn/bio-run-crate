@@ -9,6 +9,7 @@ failure producing a specific structured finding.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -48,14 +49,29 @@ def test_structural_example_fails_with_its_documented_error(
     assert len(reported) == 1
 
 
-def test_targeted_examples_use_only_synthetic_public_safe_values() -> None:
-    """Each targeted fixture stays anchored to `example.org` and invented names."""
+def test_targeted_examples_keep_run_specific_values_synthetic() -> None:
+    """Each targeted fixture keeps its *run-specific* values synthetic.
+
+    Only run-scoped data is covered: identifiers, paths and URLs. Biological
+    context is deliberately out of scope — the fixtures use real public
+    reference terminology and ontology identifiers (`Homo sapiens`,
+    `NCBI:txid9606`, `UBERON:0002107`), which are shared vocabulary rather than
+    data about anyone, and which must not be replaced with fabricated values.
+
+    This is a lightweight anchor on the fixtures, not a sensitive-data scanner.
+    """
     filenames = [filename for filename, _, _ in STRUCTURAL_FAILURES]
     for filename in [*filenames, "duplicate-output-id-run.yaml"]:
         text = (EXAMPLES / filename).read_text(encoding="utf-8")
-        assert "example.org" in text
-        assert "synthetic" in text
-        assert "http://" not in text
+        # Synthetic run-scoped identifiers, matching the model's ID patterns.
+        assert re.search(r"^run_id: run-\d{3,}$", text, re.MULTILINE)
+        assert re.search(r"^  id: project-\d{3,}$", text, re.MULTILINE)
+        assert re.search(r"^  id: dataset-\d{3,}$", text, re.MULTILINE)
+        assert re.search(r"^  - id: output-\d{3,}$", text, re.MULTILINE)
+        # Every URL is an `example.org` placeholder, over HTTPS.
+        urls = re.findall(r"https?://\S+", text)
+        assert urls
+        assert all(url.startswith("https://example.org/") for url in urls)
 
 
 def test_duplicate_output_id_example_emits_only_core_001() -> None:
