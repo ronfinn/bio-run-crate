@@ -31,6 +31,14 @@ changes.
 - `validate` now runs the core rules after schema validation and renders the
   resulting findings — rule ID, severity, location and message — as a table on
   stderr, with a per-severity count in the stdout summary.
+- Three narrowly targeted synthetic examples, each isolating one failure so its
+  diagnostic can be studied on its own:
+  `examples/synthetic/missing-required-field-run.yaml` (a required field is
+  missing — exit `2`), `examples/synthetic/wrong-field-type-run.yaml` (a field
+  has the wrong type — exit `2`) and
+  `examples/synthetic/duplicate-output-id-run.yaml` (schema-valid but breaks
+  `CORE-001` — exit `1`). The example library is tabulated in the README and in
+  `docs/data-model.md` Part C.
 - A third synthetic example, `examples/synthetic/rule-violations-run.yaml`: a
   schema-valid manifest that deliberately violates core rules.
 - Structured validation findings in `bio_run_crate.findings`: a `Severity`

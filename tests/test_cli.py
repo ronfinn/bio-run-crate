@@ -16,6 +16,14 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "examples" / "synthetic"
 VALID = EXAMPLES / "valid-run.yaml"
 INVALID = EXAMPLES / "invalid-run.yaml"
 RULE_VIOLATIONS = EXAMPLES / "rule-violations-run.yaml"
+MISSING_REQUIRED_FIELD = EXAMPLES / "missing-required-field-run.yaml"
+WRONG_FIELD_TYPE = EXAMPLES / "wrong-field-type-run.yaml"
+DUPLICATE_OUTPUT_ID = EXAMPLES / "duplicate-output-id-run.yaml"
+
+
+def _flatten(output: str) -> str:
+    """Strip table borders and collapse whitespace so sentences can be matched."""
+    return re.sub(r"\s+", " ", re.sub(r"[│┃]", " ", output))
 
 
 def test_version_command() -> None:
@@ -50,7 +58,7 @@ def test_finding_output_shows_rule_id_severity_location_and_message() -> None:
     result = runner.invoke(app, ["validate", str(RULE_VIOLATIONS)])
     # The table wraps long messages across rows; strip its borders and collapse
     # layout whitespace so a full sentence can be matched.
-    rendered = re.sub(r"\s+", " ", re.sub(r"[│┃]", " ", result.output))
+    rendered = _flatten(result.output)
     assert "CORE-001" in rendered
     assert "ERROR" in rendered
     assert "inputs[1].id" in rendered
@@ -60,6 +68,38 @@ def test_finding_output_shows_rule_id_severity_location_and_message() -> None:
 def test_schema_invalid_manifest_exits_two() -> None:
     result = runner.invoke(app, ["validate", str(INVALID)])
     assert result.exit_code == 2
+
+
+def test_missing_required_field_fixture_exits_two_and_names_the_field() -> None:
+    """`missing-required-field-run.yaml` omits `workflow.version` only."""
+    result = runner.invoke(app, ["validate", str(MISSING_REQUIRED_FIELD)])
+    rendered = _flatten(result.output)
+    assert result.exit_code == 2
+    assert "workflow.version" in rendered
+    assert "missing" in rendered
+    # A structural failure stops before the rule engine, so no finding is shown.
+    assert "CORE-" not in rendered
+
+
+def test_wrong_field_type_fixture_exits_two_and_names_the_field() -> None:
+    """`wrong-field-type-run.yaml` gives `inputs` as a scalar, not a list."""
+    result = runner.invoke(app, ["validate", str(WRONG_FIELD_TYPE)])
+    rendered = _flatten(result.output)
+    assert result.exit_code == 2
+    assert "list_type" in rendered
+    assert "should be a valid list" in rendered
+    assert "CORE-" not in rendered
+
+
+def test_duplicate_output_id_fixture_exits_one_with_only_core_001() -> None:
+    """`duplicate-output-id-run.yaml` reuses `output-001` and nothing else."""
+    result = runner.invoke(app, ["validate", str(DUPLICATE_OUTPUT_ID)])
+    rendered = _flatten(result.output)
+    assert result.exit_code == 1
+    assert "CORE-001" in rendered
+    assert "ERROR" in rendered
+    assert "outputs[1].id" in rendered
+    assert "1 error(s), 0 warning(s), 0 info" in rendered
 
 
 def test_missing_file_exits_two() -> None:

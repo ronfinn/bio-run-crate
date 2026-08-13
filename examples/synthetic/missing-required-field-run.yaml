@@ -1,0 +1,53 @@
+# Fully synthetic, public-safe example manifest — intentionally INVALID.
+#
+# Failure mode: STRUCTURAL — a required field is missing.
+# Primary defect: `workflow.version` is omitted. `Workflow.version` is required
+# by the model (docs/data-model.md §A.6), so the manifest never reaches the rule
+# engine and `bio-run-crate validate` exits 2 with a `missing` error at
+# `workflow.version`.
+#
+# Apart from that one omission this file is identical in spirit to
+# `valid-run.yaml`: run-specific identifiers, paths, metadata and URLs are
+# synthetic, while the biological context uses public reference terminology and
+# ontology identifiers. No real sample, patient, private organization, internal
+# system or production dataset is represented.
+manifest_version: "0.1"
+run_id: run-003
+
+project:
+  id: project-003
+  title: Synthetic missing-field demonstration
+  description: A fully synthetic example whose workflow version is omitted.
+  url: https://example.org/projects/project-003
+
+dataset:
+  id: dataset-003
+  title: Synthetic dataset for a missing required field
+  created: 2026-01-15
+
+biological_context:
+  organism:
+    scientific_name: Homo sapiens
+    taxon_id: NCBI:txid9606
+    common_name: human
+
+assay:
+  type: synthetic-rna-seq
+  platform: synthetic-sequencing
+
+workflow:
+  name: synthetic-rnaseq-workflow
+  # version: "1.0.0"          <- intentionally omitted; `version` is required
+  url: https://example.org/workflows/synthetic-rnaseq-workflow
+
+inputs:
+  - id: input-001
+    path: inputs/reads_R1.fastq.gz
+    role: primary_input
+    checksum: sha256:00000000000000000000000000000000000000000000000000000000000000aa
+
+outputs:
+  - id: output-001
+    path: outputs/counts.tsv
+    role: result_table
+    checksum: sha256:00000000000000000000000000000000000000000000000000000000000000bb

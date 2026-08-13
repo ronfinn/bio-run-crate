@@ -3,9 +3,12 @@
 **Status:** Implemented for Milestone 0. The Part A model below is realised as
 Pydantic v2 models in `src/bio_run_crate/models.py`, loaded from YAML by
 `src/bio_run_crate/manifest.py` and validated by the `validate` CLI command. All
-examples on this page are entirely synthetic — invented identifiers, invented
-instrument model names, and `example.org`-style values. None refer to any real
-organization, system, or dataset.
+examples on this page are public-safe: run, project, dataset and resource
+identifiers, paths, instrument model names, and URLs are synthetic and invented,
+using `example.org`-style values. Biological context may use real public
+reference terminology and ontology/taxonomy identifiers. No example refers to a
+real sample, patient, private organization, internal system, or production
+dataset.
 
 Validating a manifest happens in two distinct layers, and the distinction
 matters throughout this document:
@@ -327,11 +330,21 @@ Might add to each relevant resource entry:
 
 The canonical copy of this manifest lives at
 `examples/synthetic/valid-run.yaml` and is exercised by the test suite; the
-listing below is a copy for reference. Two deliberately defective counterparts
-live alongside it: `examples/synthetic/invalid-run.yaml` fails *schema*
-validation (so no rule runs against it), and
-`examples/synthetic/rule-violations-run.yaml` is schema-valid but violates
-several core *rules* (§A.8.2).
+listing below is a copy for reference. Deliberately defective counterparts live
+alongside it, each annotated inline with the defect it carries:
+
+| Example | Failure mode | Where it fails |
+|---|---|---|
+| `missing-required-field-run.yaml` | Required field missing: `workflow.version` is omitted (§A.6). | Schema (`missing` at `workflow.version`) |
+| `wrong-field-type-run.yaml` | Wrong field type: `inputs` is a scalar rather than a list of resources (§A.7). | Schema (`list_type` at `inputs`) |
+| `duplicate-output-id-run.yaml` | Identifier reused: `output-001` names two outputs, breaking the uniqueness contract in §A.7. | Rule `CORE-001` (ERROR) at `outputs[1].id` |
+| `invalid-run.yaml` | Several structural defects at once: malformed `run_id` and `project.id`, missing `organism.scientific_name` and `workflow.version`, unknown top-level key. | Schema |
+| `rule-violations-run.yaml` | Several core-rule violations at once. | Rules `CORE-001` (ERROR) and `CORE-003` (WARNING) (§A.8.2) |
+
+The first three isolate a single defect each, so one diagnostic can be studied on
+its own; the last two bundle defects to show several being reported together. A
+manifest that fails schema validation never reaches the rule engine, so no rule
+runs against it.
 
 Note that the valid manifest below still produces one `CORE-003` WARNING:
 `output-002` carries no checksum. That is intentional — it keeps a
@@ -392,6 +405,10 @@ outputs:
     media_type: text/markdown
 ```
 
-This example is used purely to illustrate the schema described in Part A.
-It contains no real identifiers, no real reference genome, and no real
-software beyond synthetic placeholder names.
+This example is used purely to illustrate the schema described in Part A. Its
+run-specific identifiers, paths, project and dataset metadata, and URLs are
+synthetic; its workflow and instrument names are placeholders; and it names no
+real reference genome. The organism and tissue terms are public reference
+vocabulary (`Homo sapiens`, `NCBI:txid9606`, `UBERON:0002107`) and identify no
+real sample, patient, private organization, internal system or production
+dataset.

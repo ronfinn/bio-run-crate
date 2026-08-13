@@ -160,9 +160,13 @@ See [Exit codes](#exit-codes).
 
 ## Manifest example
 
-The manifest below is fully synthetic and matches the current model. Every
-identifier, name, and URL is invented; nothing refers to a real organism sample,
-organization, system, or dataset. It is a copy of
+The manifest below is public-safe and matches the current model. Every
+run-specific value — identifiers, paths, project and dataset metadata, workflow
+and instrument names, and URLs — is synthetic and invented. The biological
+context uses real *public reference* terminology and ontology identifiers
+(`Homo sapiens`, `NCBI:txid9606`, `UBERON:0002107`); nothing refers to a real
+sample, patient, private organization, internal system, or production dataset.
+It is a copy of
 [`examples/synthetic/valid-run.yaml`](examples/synthetic/valid-run.yaml).
 
 ```yaml
@@ -212,22 +216,40 @@ outputs:
     path: outputs/counts.tsv
     role: result_table
     media_type: text/tab-separated-values
+    checksum: sha256:00000000000000000000000000000000000000000000000000000000000000bb
   - id: output-002
     path: outputs/qc_report.md
     role: qc_report
     media_type: text/markdown
 ```
 
-Two intentionally defective counterparts are provided, each with its defects
-annotated inline:
-[`examples/synthetic/invalid-run.yaml`](examples/synthetic/invalid-run.yaml)
-fails schema validation (exit `2`), and
-[`examples/synthetic/rule-violations-run.yaml`](examples/synthetic/rule-violations-run.yaml)
-is schema-valid but breaks core rules (exit `1`).
-
 Note that the valid manifest above still produces one `CORE-003` warning —
 `output-002` has no checksum — which is reported but does not make the manifest
 invalid.
+
+### Example manifest library
+
+Every example under `examples/synthetic/` is public-safe. All run-specific
+identifiers, paths, project and dataset metadata, and URLs are synthetic —
+`example.org` domains and invented IDs only. Biological context may use public
+reference terminology and ontology/taxonomy identifiers, which are shared
+vocabulary rather than data about anyone. Alongside the valid manifest
+sit deliberately defective counterparts, each annotated inline with the defect it
+carries. Three of them isolate a single failure so the corresponding diagnostic
+can be seen on its own; the fourth bundles several defects to show how multiple
+problems are reported together.
+
+| Example | Demonstrates | Exit code |
+|---|---|---|
+| [`valid-run.yaml`](examples/synthetic/valid-run.yaml) | The full generic model, with one `CORE-003` WARNING (`output-002` has no checksum). | `0` |
+| [`missing-required-field-run.yaml`](examples/synthetic/missing-required-field-run.yaml) | Structural failure: a required field is missing (`workflow.version` is omitted). | `2` |
+| [`wrong-field-type-run.yaml`](examples/synthetic/wrong-field-type-run.yaml) | Structural failure: a field has the wrong type (`inputs` is a scalar, not a list). | `2` |
+| [`duplicate-output-id-run.yaml`](examples/synthetic/duplicate-output-id-run.yaml) | Semantic failure: `CORE-001` ERROR at `outputs[1].id` — `output-001` is used twice. | `1` |
+| [`invalid-run.yaml`](examples/synthetic/invalid-run.yaml) | Several structural failures at once: bad `run_id` and `project.id` patterns, a missing `organism.scientific_name` and `workflow.version`, and an unknown top-level key. | `2` |
+| [`rule-violations-run.yaml`](examples/synthetic/rule-violations-run.yaml) | Several core-rule violations at once: `CORE-001` ERROR and `CORE-003` WARNING. | `1` |
+
+A structural failure stops before the rule engine, so those examples produce
+schema errors and no findings; a semantic failure produces findings.
 
 ## CLI reference
 
@@ -344,8 +366,11 @@ committed to this repository. The illustrative **modality profiles** described i
 - **Offline core.** Reading and validating a manifest requires no network access
   and no credentials.
 - **Synthetic data only, in this repository.** All examples, fixtures, and
-  documentation use invented identifiers and `example.org`-style placeholders —
-  never real sample IDs, organization names, internal systems, or personal data.
+  documentation use invented run, project, dataset and resource identifiers,
+  synthetic paths, and `example.org`-style placeholders — never real sample IDs,
+  organization names, internal systems, or personal data. Public reference
+  terminology and ontology/taxonomy identifiers are permitted in biological
+  context, since they are shared vocabulary and not data about anyone.
 - **Safe parsing.** YAML is parsed with safe loading, not arbitrary object
   deserialization.
 - **No silent mutation.** The tool does not rewrite or "fix" your source
