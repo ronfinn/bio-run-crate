@@ -327,11 +327,21 @@ Might add to each relevant resource entry:
 
 The canonical copy of this manifest lives at
 `examples/synthetic/valid-run.yaml` and is exercised by the test suite; the
-listing below is a copy for reference. Two deliberately defective counterparts
-live alongside it: `examples/synthetic/invalid-run.yaml` fails *schema*
-validation (so no rule runs against it), and
-`examples/synthetic/rule-violations-run.yaml` is schema-valid but violates
-several core *rules* (§A.8.2).
+listing below is a copy for reference. Deliberately defective counterparts live
+alongside it, each annotated inline with the defect it carries:
+
+| Example | Failure mode | Where it fails |
+|---|---|---|
+| `missing-required-field-run.yaml` | Required field missing: `workflow.version` is omitted (§A.6). | Schema (`missing` at `workflow.version`) |
+| `wrong-field-type-run.yaml` | Wrong field type: `inputs` is a scalar rather than a list of resources (§A.7). | Schema (`list_type` at `inputs`) |
+| `duplicate-output-id-run.yaml` | Identifier reused: `output-001` names two outputs, breaking the uniqueness contract in §A.7. | Rule `CORE-001` (ERROR) at `outputs[1].id` |
+| `invalid-run.yaml` | Several structural defects at once: malformed `run_id` and `project.id`, missing `organism.scientific_name` and `workflow.version`, unknown top-level key. | Schema |
+| `rule-violations-run.yaml` | Several core-rule violations at once. | Rules `CORE-001` (ERROR) and `CORE-003` (WARNING) (§A.8.2) |
+
+The first three isolate a single defect each, so one diagnostic can be studied on
+its own; the last two bundle defects to show several being reported together. A
+manifest that fails schema validation never reaches the rule engine, so no rule
+runs against it.
 
 Note that the valid manifest below still produces one `CORE-003` WARNING:
 `output-002` carries no checksum. That is intentional — it keeps a

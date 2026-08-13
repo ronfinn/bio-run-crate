@@ -1,0 +1,47 @@
+# Fully synthetic, public-safe example manifest — intentionally INVALID.
+#
+# Failure mode: STRUCTURAL — a field has the wrong type.
+# Primary defect: `inputs` is given as a single scalar string instead of a list
+# of input resources (docs/data-model.md §A.7). The manifest parses as YAML but
+# fails model validation, so `bio-run-crate validate` exits 2 with a
+# `list_type` error at `inputs`.
+#
+# Everything else matches the shape of `valid-run.yaml`. No real identifiers,
+# organisms, systems or datasets.
+manifest_version: "0.1"
+run_id: run-004
+
+project:
+  id: project-004
+  title: Synthetic wrong-type demonstration
+  description: A fully synthetic example whose inputs field is not a list.
+  url: https://example.org/projects/project-004
+
+dataset:
+  id: dataset-004
+  title: Synthetic dataset for a wrongly typed field
+  created: 2026-01-15
+
+biological_context:
+  organism:
+    scientific_name: Homo sapiens
+    taxon_id: NCBI:txid9606
+    common_name: human
+
+assay:
+  type: synthetic-rna-seq
+  platform: synthetic-sequencing
+
+workflow:
+  name: synthetic-rnaseq-workflow
+  version: "1.0.0"
+  url: https://example.org/workflows/synthetic-rnaseq-workflow
+
+# Intentionally a bare string: `inputs` must be a list of input resources.
+inputs: inputs/reads_R1.fastq.gz
+
+outputs:
+  - id: output-001
+    path: outputs/counts.tsv
+    role: result_table
+    checksum: sha256:00000000000000000000000000000000000000000000000000000000000000bb
