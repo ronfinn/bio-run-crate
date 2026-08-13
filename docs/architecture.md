@@ -1,11 +1,10 @@
 # Architecture — Bio Run Crate
 
-**Status:** Partly implemented for Milestone 0. The manifest-parsing and
-generic-run-model components below now exist (`src/bio_run_crate/manifest.py`,
-`models.py`) and are wired into the `validate` CLI command, and the structured
-findings model exists (`findings.py`) but has no producer or consumer yet; the
-validation-rule engine, report generation and RO-Crate output are still target
-design. This document should be updated to reflect reality as components are
+**Status:** Partly implemented for Milestone 0. Manifest parsing
+(`src/bio_run_crate/manifest.py`), the generic run model (`models.py`), the
+structured findings model (`findings.py`) and the core validation engine
+(`validation/`) all exist and are wired into the `validate` CLI command; report
+generation and RO-Crate output are still target design. This document should be updated to reflect reality as components are
 built, per the workflow rule in `CLAUDE.md` ("update documentation when
 behaviour changes").
 
@@ -91,10 +90,22 @@ are we standing on something that already exists?"
   translating findings/errors into process exit codes. It must not contain
   validation logic itself (per the "keep parsing, validation, reporting and
   RO-Crate generation separate" architecture rule in `CLAUDE.md`).
-- Exit code convention (proposed, to be confirmed during implementation):
-  `0` = no ERROR findings, `1` = at least one ERROR finding, `2` = the tool
-  itself failed to run (for example, malformed YAML that cannot be parsed
-  at all).
+- Exit code convention (**settled and implemented**):
+
+  | Code | Meaning |
+  |---|---|
+  | `0` | The manifest parsed and validation produced no ERROR findings. WARNING and INFO findings alone do not change this. |
+  | `1` | The manifest parsed, but validation produced at least one ERROR finding. |
+  | `2` | The manifest never reached the rule engine: it was missing or unreadable, was not valid YAML, had a non-mapping top level, or failed Pydantic's structural/schema validation. |
+
+  The `1`/`2` split follows the boundary in §3.2: `1` means "we validated your
+  manifest and it has an error", `2` means "there was nothing to validate".
+  Structural failures are reported as Pydantic's own errors and are deliberately
+  *not* dressed up as `CORE-*` findings, since they are not rule findings.
+- Presentation of findings is the CLI's own concern: `validate` renders them as a
+  terminal table (rule ID, severity, location, message) on stderr, with a
+  one-line summary on stdout. The reusable JSON and Markdown reporters (§3.5)
+  are separate and not yet built.
 
 ### 3.2 Manifest parsing
 
@@ -120,9 +131,11 @@ are we standing on something that already exists?"
 
 ### 3.4 Validation engine
 
-**Status:** the findings model it produces is implemented
-(`src/bio_run_crate/findings.py`); the rule set and the engine that applies it
-are not.
+**Status:** implemented for the core rule set, in `src/bio_run_crate/validation/`
+(`rule.py` — what a rule is; `registry.py` — a rule set and its identifier
+invariants; `core_rules.py` — the deliberately minimal core rule set, listed in
+`docs/data-model.md` §A.8.2; `engine.py` — `validate_manifest()`, the single
+public entry point). Profile rule sets are not implemented.
 
 - Applies rules to the parsed model. Each rule has a stable, versioned
   identifier (`<NAMESPACE>-<NNN>`, e.g. `CORE-001`; the convention is defined in
@@ -130,6 +143,14 @@ are not.
   that a finding can be traced back to exactly one rule, referenced externally
   (e.g. in an audit record or a suppression list), and have its severity or
   wording changed over time without breaking that traceability.
+- Runs every rule in the registry and collects their findings; a rule that
+  produces findings never prevents later rules from running, so one invocation
+  reports everything wrong with a manifest. Rule identifiers are unique by
+  construction — the registry rejects a duplicate, and can pin the namespace its
+  rules must use — and retired identifiers are recorded explicitly so they cannot
+  be reused (`docs/data-model.md` §A.8.1). Each rule emits exactly one declared
+  severity, which the engine enforces, so severity is a stable property of the
+  rule ID.
 - Produces findings, each with: rule ID, severity (ERROR/WARNING/INFO), a
   human-readable message, and a `Location` referring to the place in the
   manifest the finding applies to. Findings are aggregated into a
@@ -202,5 +223,5 @@ are not.
 - Whether profiles are implemented as a Python plugin/entry-point mechanism
   or as a simpler internal registry is not yet decided (see ADR-0003 for
   the current thinking).
-- Exit code and logging conventions above are proposals, not settled
-  decisions.
+- Logging conventions are not yet settled. (The exit-code convention in §3.1 is
+  now settled and implemented.)

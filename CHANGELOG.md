@@ -11,6 +11,28 @@ changes.
 
 ### Added
 
+- Core validation engine in `bio_run_crate.validation`: a `Rule` abstraction
+  (stable rule ID, declared severity, description, and a pure check over a
+  parsed manifest), a `RuleRegistry` that enforces rule-ID uniqueness and
+  can pin the namespace its rules must use and refuses to reuse an explicitly
+  retired identifier, the modality-agnostic core rule set, and
+  `validate_manifest()`, which applies a rule set to a manifest and returns a
+  `ValidationResult`. Validation is offline, deterministic, runs every rule
+  rather than stopping at the first, and never mutates the manifest.
+- Core rules `CORE-001` (a resource `id` used more than once within `inputs` or
+  `outputs` — ERROR) and `CORE-003` (an output with no checksum — WARNING),
+  documented in `docs/data-model.md` §A.8.2. The set is deliberately minimal:
+  a rule ships only where the data model already states the invariant it checks.
+  Each rule declares exactly one severity, which the engine enforces.
+- An explicit uniqueness contract for resource identifiers in
+  `docs/data-model.md` §A.7: an `id` must be unique within its collection. This
+  is a cross-field invariant that per-field schema validation cannot express,
+  and is what `CORE-001` enforces.
+- `validate` now runs the core rules after schema validation and renders the
+  resulting findings — rule ID, severity, location and message — as a table on
+  stderr, with a per-severity count in the stdout summary.
+- A third synthetic example, `examples/synthetic/rule-violations-run.yaml`: a
+  schema-valid manifest that deliberately violates core rules.
 - Structured validation findings in `bio_run_crate.findings`: a `Severity`
   enumeration limited to `ERROR`, `WARNING` and `INFO`; a frozen `Finding`
   model carrying a stable rule identifier, severity, message and a `Location`
@@ -18,10 +40,9 @@ changes.
   in a canonical, deterministic order on every construction path. Both models
   are JSON-serialisable. The rule-ID syntax (`<NAMESPACE>-<NNN>`, core rules
   under `CORE`) is documented in `docs/data-model.md` §A.8.1 and validated by the
-  model; uniqueness and non-reuse of identifiers are project-level invariants for
-  the future rule registry to enforce. The rule engine that produces findings
-  and the reporters that render them are not yet implemented, so the CLI does
-  not use this model yet.
+  model; uniqueness and non-reuse of identifiers are enforced by the rule
+  registry added alongside the validation engine (also in this release). The
+  reporters that render findings to files are not yet implemented.
 - Automated secret scanning with [gitleaks](https://github.com/gitleaks/gitleaks),
   as a `Secret scanning` job in the existing CI workflow, running on pull
   requests and pushes to `main` over both the working tree and the full commit
@@ -30,12 +51,21 @@ changes.
   local usage, remediation, and allowlisting guidance are documented in
   `CONTRIBUTING.md` and `docs/security-and-privacy.md`.
 
+### Changed
+
+- **Exit codes for `validate` (breaking).** The previously proposed three-code
+  convention is now settled and implemented: `0` = parsed with no ERROR
+  findings (WARNING and INFO alone still exit `0`), `1` = parsed but at least
+  one ERROR finding, `2` = the manifest never reached the rule engine (missing
+  or unreadable file, malformed YAML, non-mapping top level, or a
+  structural/schema validation error). Previously every failure exited `1`;
+  schema failures now exit `2`.
+
 ### Planned
 
 Designed but not yet implemented (see the [README](README.md) and
 [architecture](docs/architecture.md)):
 
-- The validation-rule engine that produces findings.
 - JSON and Markdown validation reports.
 - RO-Crate 1.2 package creation via `ro-crate-py`.
 - Optional enrichment of an existing nf-prov RO-Crate.
