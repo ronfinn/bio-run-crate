@@ -1,9 +1,9 @@
 """Structured validation findings.
 
 Findings are the *output* of validating a manifest — the common currency
-between the (not yet implemented) rule engine and the JSON/Markdown reporters.
-This module owns the shape of that currency only: it defines what a finding is,
-how a rule is identified, how a location inside a manifest is expressed, and how
+between the rule engine and the JSON/Markdown reporters. This module owns the
+shape of that currency only: it defines what a finding is, how a rule is
+identified, how a location inside a manifest is expressed, and how
 findings are aggregated and ordered for one validation run.
 
 It deliberately contains no validation rules. Concrete rules, the engine that

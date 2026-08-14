@@ -19,11 +19,13 @@ Scope (see `docs/project-charter.md` §3 for the authoritative list):
 - [x] YAML manifest parsing.
 - [x] Core validation rule engine with stable rule IDs.
 - [x] ERROR/WARNING/INFO findings.
-- [ ] JSON and Markdown report generation.
+- [x] JSON report generation (`validate --format json`; schema documented in
+      `docs/json-report.md`).
+- [ ] Markdown report generation.
 - [ ] RO-Crate 1.2 package creation via `ro-crate-py`.
 - [x] Minimal CLI (Typer) wiring the above together (`validate` command).
-- [x] Test suite covering parsing, core rules and CLI behaviour with
-      synthetic fixtures (reporting still to come).
+- [x] Test suite covering parsing, core rules, the JSON report and CLI
+      behaviour with synthetic fixtures.
 - [ ] This documentation set, kept accurate as implementation proceeds.
 
 Explicitly **not** in Milestone 0 (see non-goals in

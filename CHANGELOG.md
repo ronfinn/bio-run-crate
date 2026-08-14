@@ -11,6 +11,24 @@ changes.
 
 ### Added
 
+- JSON validation report in a new `bio_run_crate.reporting` package: a versioned
+  (`schema_version`, currently `"1"`), documented document carrying the run
+  identifier, a per-severity summary that always includes all three severities
+  even when zero, and every finding with its rule ID, severity, message and
+  structured `location`. `build_json_report()` and `render_json_report()` are
+  pure functions of an already-parsed manifest and a `ValidationResult` — no file
+  reads, no network, no rule execution, no mutation, no clock or randomness.
+  Serialization is deterministic by contract: fixed key order, canonical finding
+  order, fixed indentation and exactly one trailing newline, so two reports for
+  the same result are byte-identical and diffable. The full schema is documented
+  in `docs/json-report.md`.
+- `validate --format {text,json}` (`-f`), an enumeration rather than a `--json`
+  flag so further formats can be added as members. `text` is the default and
+  unchanged. `json` writes exactly one report to stdout and suppresses the
+  findings table and human summary, with no Rich styling; exit codes are
+  unchanged, so a WARNING-only run emits a full report and still exits `0`. A
+  manifest that fails structurally never reaches the rule engine, so it produces
+  no report — its existing diagnostics stay on stderr and it still exits `2`.
 - Core validation engine in `bio_run_crate.validation`: a `Rule` abstraction
   (stable rule ID, declared severity, description, and a pure check over a
   parsed manifest), a `RuleRegistry` that enforces rule-ID uniqueness and
