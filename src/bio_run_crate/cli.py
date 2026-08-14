@@ -1,8 +1,14 @@
 """Command-line interface for bio-run-crate.
 
-The CLI is intentionally thin: it delegates parsing to :mod:`bio_run_crate.manifest`
-and rule-based validation to :mod:`bio_run_crate.validation`, and is responsible
-only for presentation and exit codes. It contains no validation rules of its own.
+The CLI is intentionally thin: it delegates parsing to :mod:`bio_run_crate.manifest`,
+rule-based validation to :mod:`bio_run_crate.validation` and machine-readable
+output to :mod:`bio_run_crate.reporting`, and is responsible only for
+presentation and exit codes. It contains no validation rules of its own.
+
+``validate --format`` chooses how a result is presented, never what is
+validated: the rule engine runs exactly once either way and the exit code is the
+same. ``text`` (the default) renders findings for a human; ``json`` emits the
+report documented in ``docs/json-report.md`` on stdout and nothing else.
 
 Exit codes (see ``docs/architecture.md`` §3.1):
 
@@ -11,11 +17,13 @@ Exit codes (see ``docs/architecture.md`` §3.1):
 - ``1`` — the manifest parsed, but validation produced at least one ERROR.
 - ``2`` — the manifest never reached the rule engine: it was missing or
   unreadable, was not valid YAML, had a non-mapping top level, or failed
-  Pydantic's structural/schema validation.
+  Pydantic's structural/schema validation. There is no ``ValidationResult`` in
+  this case, so no JSON report is produced regardless of ``--format``.
 """
 
 from __future__ import annotations
 
+import enum
 from pathlib import Path
 
 import typer
@@ -28,6 +36,7 @@ from bio_run_crate import __version__
 from bio_run_crate.findings import Severity, ValidationResult
 from bio_run_crate.manifest import load_manifest
 from bio_run_crate.models import RunManifest
+from bio_run_crate.reporting import build_json_report, render_json_report
 from bio_run_crate.validation import validate_manifest
 
 #: Exit code used when a manifest parses but has at least one ERROR finding.
@@ -35,6 +44,19 @@ EXIT_VALIDATION_FAILED = 1
 
 #: Exit code used when a manifest cannot be parsed into a model at all.
 EXIT_UNUSABLE_MANIFEST = 2
+
+
+class OutputFormat(enum.StrEnum):
+    """How ``validate`` presents a validation result.
+
+    An enumeration rather than a boolean flag because further formats are
+    expected — Markdown is issue #8 — and a new member is a smaller change than
+    a second mutually exclusive switch.
+    """
+
+    TEXT = "text"
+    JSON = "json"
+
 
 app = typer.Typer(
     help="Validate biological analysis-run metadata and build RO-Crates.",
@@ -71,6 +93,12 @@ def validate(
         dir_okay=False,
         help="Path to a YAML run manifest.",
     ),
+    output_format: OutputFormat = typer.Option(
+        OutputFormat.TEXT,
+        "--format",
+        "-f",
+        help="How to present the result: a terminal report, or JSON on stdout.",
+    ),
 ) -> None:
     """Parse a run manifest, then check it against the core validation rules.
 
@@ -78,6 +106,13 @@ def validate(
     produced at least one ERROR, and 2 if it could not be parsed into a model at
     all (missing or unreadable file, malformed YAML, non-mapping top level, or a
     structural/schema validation error).
+
+    With ``--format json`` the findings are written to stdout as the JSON report
+    documented in ``docs/json-report.md`` and the terminal table and summary are
+    suppressed, so stdout holds exactly one JSON document and nothing else. The
+    exit code is unchanged. A manifest that fails to parse still exits 2 with its
+    diagnostics on stderr and produces no report, because there are no findings
+    to report.
     """
     try:
         run = load_manifest(manifest)
@@ -93,10 +128,12 @@ def validate(
         raise typer.Exit(code=EXIT_UNUSABLE_MANIFEST) from error
 
     result = validate_manifest(run)
-    if result.findings:
-        _render_findings(result)
-
-    _report_summary(run, result)
+    if output_format is OutputFormat.JSON:
+        _emit_json_report(run, result)
+    else:
+        if result.findings:
+            _render_findings(result)
+        _report_summary(run, result)
 
     if result.has_errors:
         raise typer.Exit(code=EXIT_VALIDATION_FAILED)
@@ -126,6 +163,17 @@ def _render_findings(result: ValidationResult) -> None:
             finding.message,
         )
     _err.print(table)
+
+
+def _emit_json_report(run: RunManifest, result: ValidationResult) -> None:
+    """Write the JSON report for ``result`` to stdout, and nothing else.
+
+    Deliberately bypasses the Rich consoles used elsewhere in this module: Rich
+    wraps, styles and may emit ANSI escapes, none of which belong in a document
+    a machine parses. The rendered text already ends with exactly one newline,
+    so none is added.
+    """
+    typer.echo(render_json_report(build_json_report(run, result)), nl=False)
 
 
 def _report_summary(run: RunManifest, result: ValidationResult) -> None:

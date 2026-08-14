@@ -104,8 +104,10 @@ are we standing on something that already exists?"
   *not* dressed up as `CORE-*` findings, since they are not rule findings.
 - Presentation of findings is the CLI's own concern: `validate` renders them as a
   terminal table (rule ID, severity, location, message) on stderr, with a
-  one-line summary on stdout. The reusable JSON and Markdown reporters (§3.5)
-  are separate and not yet built.
+  one-line summary on stdout. `validate --format json` instead emits the
+  reusable JSON report (§3.5) on stdout and suppresses both, without changing
+  which rules run or which exit code is returned. The Markdown reporter is not
+  yet built.
 
 ### 3.2 Manifest parsing
 
@@ -163,13 +165,28 @@ public entry point). Profile rule sets are not implemented.
 
 ### 3.5 Reporting
 
-**Status:** not implemented. The findings model these reporters will consume
-(§3.4) already exists and is JSON-serialisable and deterministically ordered.
+**Status:** the JSON report is implemented, in `src/bio_run_crate/reporting/`
+(`json_report.py`). The Markdown report is **not implemented**.
 
 - Serializes findings to JSON (machine-readable, stable schema) and to
   Markdown (human-readable summary).
 - Report generation is a pure function of the findings list plus run
-  metadata — it does not re-run validation or re-read the manifest.
+  metadata — a reporter is a pure consumer of an already-parsed `RunManifest`
+  and the `ValidationResult` produced for it. It does not re-run validation,
+  re-read the manifest, mutate either input, read the clock, or use the network.
+- **JSON report.** A versioned document (`schema_version`, currently `"1"`)
+  carrying the run identifier, a per-severity summary that always includes all
+  three severities, and every finding with its rule ID, severity, message and
+  structured `location`. Serialization is deterministic by contract — fixed key
+  order, canonical finding order, fixed formatting, one trailing newline, no
+  terminal styling — so reports are diffable across runs. Reachable as
+  `validate MANIFEST --format json`, which emits exactly one document on stdout
+  and suppresses the terminal table and summary; exit codes are unchanged. A
+  manifest that fails structurally never reaches the rule engine, so there is no
+  `ValidationResult` and no report is produced — it keeps its existing stderr
+  diagnostics and exit code `2`. The full schema and its contracts are
+  documented in `docs/json-report.md`.
+- **Markdown report** — pending (issue #8). It will consume the same two inputs.
 
 ### 3.6 RO-Crate generation and enrichment
 

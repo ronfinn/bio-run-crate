@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
+from typing import Any
 
 from typer.testing import CliRunner
 
@@ -119,6 +121,79 @@ def test_non_mapping_yaml_exits_two(tmp_path: Path) -> None:
     manifest.write_text("- run-001\n- run-002\n", encoding="utf-8")
     result = runner.invoke(app, ["validate", str(manifest)])
     assert result.exit_code == 2
+
+
+def test_text_format_is_the_default_and_is_explicitly_selectable() -> None:
+    """`--format text` must be exactly today's behaviour, not a variant of it."""
+    default = runner.invoke(app, ["validate", str(VALID)])
+    explicit = runner.invoke(app, ["validate", str(VALID), "--format", "text"])
+    assert explicit.exit_code == default.exit_code == 0
+    assert explicit.output == default.output
+    assert "{" not in explicit.stdout
+
+
+def _json_stdout(result: Any) -> dict[str, Any]:
+    """Parse a `--format json` run's stdout, asserting it is a lone JSON document."""
+    document: dict[str, Any] = json.loads(result.stdout)
+    return document
+
+
+def test_json_format_on_a_warning_only_manifest_exits_zero_with_one_warning() -> None:
+    result = runner.invoke(app, ["validate", str(VALID), "--format", "json"])
+    assert result.exit_code == 0
+    document = _json_stdout(result)
+    assert document["schema_version"] == "1"
+    assert document["run_id"] == "run-001"
+    assert document["summary"] == {"ERROR": 0, "WARNING": 1, "INFO": 0}
+    assert document["findings"][0]["rule_id"] == "CORE-003"
+    assert document["findings"][0]["severity"] == "WARNING"
+
+
+def test_json_stdout_carries_no_table_summary_or_ansi_styling() -> None:
+    result = runner.invoke(app, ["validate", str(VALID), "--format", "json"])
+    stdout = result.stdout
+    assert stdout.endswith("}\n")
+    # Nothing from the human-facing presentation may leak into the document.
+    assert "Valid" not in stdout
+    assert "findings:" not in stdout
+    assert "\x1b[" not in stdout
+    assert not any(border in stdout for border in "│┃─┌╭")
+
+
+def test_json_format_on_an_error_manifest_exits_one_and_still_reports() -> None:
+    result = runner.invoke(app, ["validate", str(DUPLICATE_OUTPUT_ID), "-f", "json"])
+    assert result.exit_code == 1
+    document = _json_stdout(result)
+    assert document["summary"] == {"ERROR": 1, "WARNING": 0, "INFO": 0}
+    (finding,) = document["findings"]
+    assert finding["rule_id"] == "CORE-001"
+    assert finding["location"] == {"path": "outputs[1].id"}
+
+
+def test_json_format_is_byte_identical_across_runs() -> None:
+    first = runner.invoke(app, ["validate", str(RULE_VIOLATIONS), "--format", "json"])
+    second = runner.invoke(app, ["validate", str(RULE_VIOLATIONS), "--format", "json"])
+    assert first.stdout == second.stdout
+
+
+def test_structural_failure_in_json_mode_exits_two_without_a_report() -> None:
+    """No `RunManifest` means no findings, so there is nothing to report."""
+    result = runner.invoke(
+        app, ["validate", str(MISSING_REQUIRED_FIELD), "--format", "json"]
+    )
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    # The existing schema diagnostic is unchanged.
+    rendered = _flatten(result.output)
+    assert "workflow.version" in rendered
+    assert "missing" in rendered
+
+
+def test_unknown_format_value_is_rejected_by_typer() -> None:
+    result = runner.invoke(app, ["validate", str(VALID), "--format", "yaml"])
+    assert result.exit_code != 0
+    assert "yaml" in _flatten(result.output)
+    assert result.stdout == ""
 
 
 def test_unreadable_file_exits_two(tmp_path: Path) -> None:

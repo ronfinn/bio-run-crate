@@ -19,9 +19,9 @@ LIMS, a workflow engine, or a data catalog.
 
 > ⚠️ **Alpha / work in progress.** This project is at **Milestone 0**. Today it
 > can parse a YAML manifest, validate it against a typed model, check it against
-> a small core rule set, and report structured findings with clear exit codes.
-> JSON/Markdown report files and RO-Crate output are **designed but not yet
-> built** — see
+> a small core rule set, report structured findings with clear exit codes, and
+> emit a stable JSON validation report. The Markdown report and RO-Crate output
+> are **designed but not yet built** — see
 > [Current capabilities](#current-capabilities) and
 > [Planned capabilities](#planned-capabilities). Interfaces may change without
 > notice while the project is pre-1.0.
@@ -37,6 +37,7 @@ LIMS, a workflow engine, or a data catalog.
 - [Manifest example](#manifest-example)
 - [CLI reference](#cli-reference)
 - [Exit codes](#exit-codes)
+- [JSON report](#json-report)
 - [What is RO-Crate?](#what-is-ro-crate)
 - [Relationship to nf-prov](#relationship-to-nf-prov)
 - [Architecture overview](#architecture-overview)
@@ -97,6 +98,11 @@ These work today and are covered by tests:
 - **Clear reporting** — schema errors and rule findings are each rendered as a
   table (so multiple problems are visible at once) on **stderr**; the summary
   goes to **stdout**.
+- **JSON validation report** — `validate --format json` writes a versioned,
+  deterministic report (run ID, per-severity summary, and every finding with its
+  rule ID, severity, message and location) to **stdout**, and nothing else, so it
+  can be piped, diffed or parsed by CI. See [JSON report](#json-report) and
+  [`docs/json-report.md`](docs/json-report.md).
 - **Deterministic exit codes** — `0` clean, `1` ERROR findings, `2` unusable
   manifest. See [Exit codes](#exit-codes).
 - **Synthetic examples** — a valid manifest, a schema-invalid one, and a
@@ -107,9 +113,9 @@ These work today and are covered by tests:
 These are designed in the docs but **not yet implemented**; the CLI does not
 perform them today:
 
-- **JSON and Markdown validation reports.** `validate` prints findings to the
-  terminal; it does not yet write report files. The findings are already
-  JSON-serialisable, so this is a rendering layer, not new validation.
+- **Markdown validation report.** The JSON report exists; its human-readable
+  Markdown counterpart does not. Neither writes a report *file* — `--format json`
+  emits to stdout, which shell redirection can capture.
 - **RO-Crate 1.2 package creation** via
   [`ro-crate-py`](https://www.researchobject.org/ro-crate/). (`rocrate` is
   declared as a dependency in preparation, but no RO-Crate code exists yet.)
@@ -150,6 +156,9 @@ uv run bio-run-crate validate examples/synthetic/rule-violations-run.yaml
 
 # Validate a manifest that fails schema validation (exits 2, prints an error table)
 uv run bio-run-crate validate examples/synthetic/invalid-run.yaml
+
+# Emit a machine-readable JSON report on stdout instead of a terminal report
+uv run bio-run-crate validate examples/synthetic/valid-run.yaml --format json
 ```
 
 A manifest with no ERROR findings prints a short summary and exits `0` — WARNING
@@ -258,7 +267,7 @@ Running `bio-run-crate` with no arguments prints help. Two commands exist:
 | Command | Arguments | Description |
 |---|---|---|
 | `version` | — | Print the installed package version and exit. |
-| `validate` | `MANIFEST` (path to a YAML file) | Parse a run manifest, validate it against the `RunManifest` model, and run the core validation rules. Prints a summary on stdout, and any schema errors or rule findings as a table on stderr. |
+| `validate` | `MANIFEST` (path to a YAML file), `--format`/`-f` `text\|json` | Parse a run manifest, validate it against the `RunManifest` model, and run the core validation rules. With `--format text` (the default) it prints a summary on stdout and any schema errors or rule findings as a table on stderr. With `--format json` it prints a [JSON report](#json-report) on stdout instead. |
 
 ```
 uv run bio-run-crate --help
@@ -277,6 +286,57 @@ The `validate` command uses three exit codes:
 
 The `1`/`2` split separates "we validated your manifest and it has an error"
 from "there was nothing to validate".
+
+## JSON report
+
+For CI jobs, audit tooling and scripts, `validate` can emit its findings as a
+stable JSON document instead of a terminal report:
+
+```
+uv run bio-run-crate validate examples/synthetic/valid-run.yaml --format json
+```
+
+```json
+{
+  "schema_version": "1",
+  "run_id": "run-001",
+  "summary": {
+    "ERROR": 0,
+    "WARNING": 1,
+    "INFO": 0
+  },
+  "findings": [
+    {
+      "rule_id": "CORE-003",
+      "severity": "WARNING",
+      "message": "Output 'output-002' has no checksum; a checksum is recommended for outputs so the artifact can be verified.",
+      "location": {
+        "path": "outputs[1].checksum"
+      }
+    }
+  ]
+}
+```
+
+- `--format text` is the default and is unchanged; `--format json` (or `-f json`)
+  writes **exactly one** JSON document to stdout and suppresses the findings
+  table and the human summary, so `... --format json > report.json` yields a
+  valid report file.
+- Output is **deterministic**: fixed key order, canonical finding order, fixed
+  indentation, one trailing newline, no ANSI styling and no timestamps — so two
+  reports for the same result are byte-identical and diffable.
+- `schema_version` versions the *report format* (not the package, not
+  `manifest_version`), so a consumer can detect a shape change.
+- **Exit codes are unchanged** (`0`/`1`/`2`). A WARNING-only run still emits a
+  full report and exits `0`.
+- A manifest that fails structurally never reaches the rule engine, so there are
+  no findings to report: `--format json` writes **no** JSON, keeps its usual
+  diagnostics on stderr, and exits `2`.
+
+The complete field-by-field schema, the determinism contract and the
+structural-failure boundary are documented in
+[`docs/json-report.md`](docs/json-report.md). The Markdown report is a separate,
+not-yet-implemented format.
 
 ## What is RO-Crate?
 
@@ -386,9 +446,9 @@ policy and [`SECURITY.md`](SECURITY.md) for how to report a vulnerability.
 
 - **Current (Milestone 0):** repository, documentation, typed data model, and a
   minimal `validate` CLI over synthetic examples. Manifest parsing, the typed
-  model, the core rule engine with structured findings, and the CLI are done;
-  reports and RO-Crate output are not.
-- **Next (candidate, not committed):** JSON and Markdown reports;
+  model, the core rule engine with structured findings, the JSON report, and the
+  CLI are done; the Markdown report and RO-Crate output are not.
+- **Next (candidate, not committed):** the Markdown report;
   RO-Crate 1.2 output; the first real modality profile; nf-prov enrichment.
 - **Later (speculative):** additional profiles, a plugin mechanism for
   third-party profiles, batch/multi-run manifests, and any strictly optional
@@ -406,7 +466,8 @@ Nothing on the roadmap is a dated commitment. See
   by the schema. Rules that would encode a policy the data model has not agreed,
   or that would need a modality assumption, an ontology, the network, or the
   filesystem, are out of scope.
-- No report files are produced; findings are printed to the terminal only.
+- No report files are written; the JSON report goes to stdout (redirect it to
+  save it), and the Markdown report does not exist yet.
 - No RO-Crate is created, and no nf-prov crate can be imported yet.
 - No modality-specific profiles are implemented.
 - The tool is not published to a package index; install from source with `uv`.
@@ -464,6 +525,8 @@ classify and handle their own data when they run the tool.
 - [Architecture](docs/architecture.md) — component boundaries and what is built
   versus planned.
 - [Data model](docs/data-model.md) — the manifest schema and modality profiles.
+- [JSON report](docs/json-report.md) — the machine-readable report schema, its
+  determinism contract, and how `validate --format json` behaves.
 - [Roadmap](docs/roadmap.md) — milestone tracking.
 - [Security and privacy](docs/security-and-privacy.md) — the synthetic-data and
   no-secrets policy.
